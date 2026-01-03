@@ -12,7 +12,7 @@ While there exist other more sophisticated tools with support for many more imag
 
 ## Features
 
-- Choose the image dimensions from the preselected list provided by ArtStation
+- Choose the image dimensions from the predefined list provided by ArtStation
 - Get a list of artworks featured on a project page
 - Exclude images from download by clicking on them
 - Specify a custom file name (it will be numbered sequentially)
@@ -46,12 +46,14 @@ While there exist other more sophisticated tools with support for many more imag
 5. Run `pip install -r /path/to/requirements.txt` to install required dependencies
 6. Execute the main script using `python main.py`
 
-## Future plans
-- Should it become clear that there are already many files with the same name, provide the option in the renaming window to skip the remaining duplicate files
+## Potential future improvements
 - Add image dimensions to the download log, not just file size
+- Check if an already existing file differs in size from the file that is to be downloaded
+- If desired, allow to overwrite existing files
+- Should the project grow further, rework GUI layout
 
 ## Disclaimer
-This program is intended for personal, non-profit use only and is not optimized for large-scale, high-volume scraping of files. Please source your data for training AI models ethically. Publicly available datasets for educational experimentation with machine learning and deep learning can be found on [Kaggle](https://www.kaggle.com/datasets).
+This program is intended for personal, non-profit use only and is not optimized for large-scale, high-volume scraping of files. Please source your data for training AI models ethically. Publicly available datasets for experimentation with machine learning and deep learning can be found on [Kaggle](https://www.kaggle.com/datasets).
 
 ## License
 Released under [MIT](https://choosealicense.com/licenses/mit/) by
