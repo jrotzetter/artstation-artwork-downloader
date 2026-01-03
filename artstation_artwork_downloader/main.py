@@ -4,13 +4,13 @@ import tkinter as tk
 from tkinter import ttk
 from tkinter import filedialog
 from tkinter import messagebox
-from tkinter import simpledialog
 import json
 import os
 import requests
 import secrets
 import cloudscraper
 from humanize import naturalsize
+import renamedialog
 
 
 class ArtStationArtworkDownloader(tk.Tk):
@@ -309,7 +309,7 @@ class ArtStationArtworkDownloader(tk.Tk):
     def _show_about():
         messagebox.showinfo(
             "About",
-            "ArtStation Artwork Project Downloader\n \nAuthor: jrotzetter \nVersion: 1.0.0 \nLicense: MIT",
+            "ArtStation Artwork Project Downloader\n \nAuthor: jrotzetter \nVersion: 1.1.0 \nLicense: MIT",
         )
 
     @staticmethod
@@ -392,6 +392,12 @@ class ArtStationArtworkDownloader(tk.Tk):
         self.image_list.delete(0, tk.END)
 
     def show_entry(self, var, ent):
+        """
+        Change the state of a tkinter entry widget based on a variable value.
+
+        :param var: The boolean variable
+        :param ent: The tkinter entry widget
+        """
         if var.get() == 0:
             ent.configure(state="disabled")
         else:
@@ -470,15 +476,16 @@ class ArtStationArtworkDownloader(tk.Tk):
     def _get_new_name(self, filename: str, ext: str, store_path: str):
         """
         Allow user to enter a new name for a file should one with the same name
-        already exist in the target directory "store_path" or skip the renaming
+        already exist in the target directory or skip the renaming
 
         :param filename: name of the file
         :param ext: extension of the file
         :param store_path: path to target directory
         """
-        new_filename = simpledialog.askstring(
+        new_filename = renamedialog.ask_rename(
             "A file with the same name already exists",
             "Please enter a new filename (without extension):",
+            self.SKIP_EXISTING,
             parent=self,
             initialvalue=filename,
         )
@@ -529,6 +536,7 @@ class ArtStationArtworkDownloader(tk.Tk):
                             continue  # filters out keep-alive packets so only real file data is written
                         f.write(chunk)
 
+            self.SAVED += 1
             file_size = os.path.getsize(file_path)
             human_size = naturalsize(file_size)
             if not content_length == 0 and not content_length == file_size:
@@ -567,6 +575,7 @@ class ArtStationArtworkDownloader(tk.Tk):
         self.PROGRESS.set("")
         self.progbar["value"] = 0
         self.progbar.update()
+        self.SAVED = 0
         self.ERRORS = 0
         self.SKIPS = 0
         self.WARNINGS = 0
@@ -621,9 +630,18 @@ class ArtStationArtworkDownloader(tk.Tk):
                         EXTN_FROM_CONTENT_TYPE,
                     )
                     if download_result == "429":
+                        # Since the download of all remaining files will now be
+                        # cancelled, ensure they are also counted as skipped
+                        self.SKIPS += progbar_max - (
+                            self.SAVED + self.ERRORS + self.SKIPS
+                        )
                         messagebox.showwarning(
                             "Warning: 429 Too Many Requests",
                             "Rate limit exceeded. Best take a break and try again later.",
+                        )
+                        self.log_lb.insert(
+                            tk.END,
+                            "< Rate limit exceeded, cancelling download of remaining files...",
                         )
                         break
                     self.log_lb.insert(tk.END, download_result)
@@ -643,9 +661,16 @@ class ArtStationArtworkDownloader(tk.Tk):
                         EXTN_FROM_CONTENT_TYPE,
                     )
                     if download_result == "429":
+                        self.SKIPS += progbar_max - (
+                            self.SAVED + self.ERRORS + self.SKIPS
+                        )
                         messagebox.showwarning(
                             "Warning: 429 Too Many Requests",
                             "Rate limit exceeded. Best take a break and try again later.",
+                        )
+                        self.log_lb.insert(
+                            tk.END,
+                            "< Rate limit exceeded, cancelling download of remaining files...",
                         )
                         break
                     self.log_lb.insert(tk.END, download_result)
@@ -654,7 +679,7 @@ class ArtStationArtworkDownloader(tk.Tk):
 
         self.log_lb.insert(
             tk.END,
-            f">>> {progbar_max} Files - Skipped: {self.SKIPS}, Errors: {self.ERRORS}, Warnings: {self.WARNINGS}",
+            f">>> {progbar_max} Files - Saved: {self.SAVED}, Skipped: {self.SKIPS}, Errors: {self.ERRORS}, Warnings: {self.WARNINGS}",
         )
         self.log_lb.insert(tk.END, "")
 
