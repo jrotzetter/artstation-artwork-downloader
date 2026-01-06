@@ -12,8 +12,9 @@ While there exist other more sophisticated tools with support for many more imag
 
 ## Features
 
-- Choose the image dimensions from the predefined list provided by ArtStation
+- Choose the image dimensions from a predefined list provided by ArtStation
 - Get a list of artworks featured on a project page
+- Add or remove individual artworks from the artworks list
 - Exclude images from download by clicking on them
 - Specify a custom file name (it will be numbered sequentially)
 - Option to skip or rename a file if one with the same name already exists in the specified download directory

@@ -18,7 +18,8 @@ class ArtStationArtworkDownloader(tk.Tk):
         super().__init__()
         self.title("ArtStation Artwork Project Downloader")
         self.center_window(900, 820)
-        self.resizable(width=False, height=False)
+        # self.resizable(width=False, height=False)
+        self.minsize(width=900, height=820)
         self.style = ttk.Style(self)
         # self.style.theme_use("clam") # the 'focus' color of the combobox's selection is a part of the 'clam' style
         # print(ttk.Style().theme_names())
@@ -41,7 +42,14 @@ class ArtStationArtworkDownloader(tk.Tk):
         help_menu.add_command(label="About...", command=self._show_about)
         help_menu.add_command(label="How to use...", command=self._show_use)
 
+        fallback_menu = tk.Menu(menubar, tearoff=0)
+        fallback_menu.add_command(label="Get URL to JSON", command=self.get_json_url)
+        fallback_menu.add_command(
+            label="Load JSON from clipboard", command=self.load_json_clp
+        )
+
         menubar.add_cascade(label="Help", menu=help_menu)
+        menubar.add_cascade(label="Fallback Method", menu=fallback_menu)
         menubar.add_command(label="Exit", command=self.destroy)
 
         ###/// MAIN FRAME \\\###
@@ -126,6 +134,7 @@ class ArtStationArtworkDownloader(tk.Tk):
             state="readonly",
             justify=tk.CENTER,
         )
+
         self.clear_json_btn = ttk.Button(
             master=self.load_json_frm,
             text="Clear image list",
@@ -150,32 +159,34 @@ class ArtStationArtworkDownloader(tk.Tk):
         self.loaded_json_ent.grid(row=3, column=0, padx=10, pady=(0, 10))
         self.clear_json_btn.grid(row=3, column=1, padx=10, pady=(0, 10))
 
-        ###/// GET JSON FRAME (FALLBACK FRAME) \\\###
-        self.get_json_frm = ttk.LabelFrame(
-            master=self.json_frm, relief="groove", text="Fallback Method"
+        ###/// ARTWORK FRAME \\\###
+        self.artwork_frm = ttk.Frame(
+            master=self.json_frm,
+            relief="groove",
         )
 
-        self.get_json_btn = ttk.Button(
-            master=self.get_json_frm,
-            text="Get URL to JSON",
-            width=BUTTON_WIDTH,
-            command=self.get_json_url,
-        )
-        self.load_json_btn = ttk.Button(
-            master=self.get_json_frm,
-            text="Load JSON from clipboard",
-            width=BUTTON_WIDTH,
-            command=self.load_json_clp,
+        self.add_artwork = ttk.Button(
+            master=self.artwork_frm,
+            text="(+) Add individual artwork URL",
+            width=30,
+            command=self._add_url,
         )
 
-        self.get_json_frm.pack(
+        self.remove_artwork = ttk.Button(
+            master=self.artwork_frm,
+            text="(-) Remove selected artwork(s)",
+            width=30,
+            command=self._remove_url,
+        )
+
+        self.artwork_frm.pack(
             fill=tk.BOTH, expand=True, padx=(50, 10), pady=10, side="right"
         )
-        self.get_json_frm.grid_rowconfigure((0, 1), weight=1)
-        self.get_json_frm.grid_columnconfigure(0, weight=1)
+        self.artwork_frm.grid_rowconfigure((0, 1), weight=1)
+        self.artwork_frm.grid_columnconfigure(0, weight=1)
 
-        self.get_json_btn.grid(row=0, column=0, padx=10, pady=10)
-        self.load_json_btn.grid(row=1, column=0, padx=10, pady=10)
+        self.add_artwork.grid(row=0, column=0, padx=10, pady=10)
+        self.remove_artwork.grid(row=1, column=0, padx=10, pady=10)
 
         ###/// IMAGES FRAME \\\###
         self.output_frm = ttk.LabelFrame(
@@ -309,7 +320,7 @@ class ArtStationArtworkDownloader(tk.Tk):
     def _show_about():
         messagebox.showinfo(
             "About",
-            "ArtStation Artwork Project Downloader\n \nAuthor: jrotzetter \nVersion: 1.1.0 \nLicense: MIT",
+            "ArtStation Artwork Project Downloader\n \nAuthor: jrotzetter \nVersion: 1.2.0 \nLicense: MIT",
         )
 
     @staticmethod
@@ -386,6 +397,34 @@ class ArtStationArtworkDownloader(tk.Tk):
                 self.image_list.insert(tk.END, img)
         else:
             messagebox.showinfo("Info", "No images found")
+
+    def _add_url(self):
+        try:
+            # Retrieve text from the clipboard
+            clipboard_text = self.clipboard_get()
+
+            if "images/images" not in clipboard_text:
+                messagebox.showerror(
+                    "Error", "Clipboard does not contain URL to an artwork!"
+                )
+                return
+
+            if clipboard_text in self.image_list.get(0, "end"):
+                messagebox.showerror("Error", "Artwork URL already present")
+                return
+
+            self.image_list.insert(tk.END, clipboard_text)
+        except tk.TclError:
+            messagebox.showerror("Error", "Clipboard is empty!")
+            return
+
+    def _remove_url(self):
+        selected_indices = self.image_list.curselection()
+
+        # Delete items in reverse index order, which ensures that removing an
+        # item doesn't affect the positions/index of the remaining items to be deleted
+        for index in reversed(selected_indices):
+            self.image_list.delete(index)
 
     def _clear_json(self):
         self.LOADED_JSON.set("")
@@ -679,7 +718,7 @@ class ArtStationArtworkDownloader(tk.Tk):
 
         self.log_lb.insert(
             tk.END,
-            f">>> {progbar_max} Files - Saved: {self.SAVED}, Skipped: {self.SKIPS}, Errors: {self.ERRORS}, Warnings: {self.WARNINGS}",
+            f">>> {progbar_max} Files - Saved: {self.SAVED}, Skipped: {self.SKIPS}, Warnings: {self.WARNINGS}, Errors: {self.ERRORS}",
         )
         self.log_lb.insert(tk.END, "")
 
