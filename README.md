@@ -16,8 +16,8 @@ While there exist other more sophisticated tools with support for many more imag
 - Get a list of artworks featured on a project page
 - Add or remove individual artworks from the artworks list
 - Exclude images from download by clicking on them
-- Specify a custom file name (it will be numbered sequentially)
-- Option to skip or rename a file if one with the same name already exists in the specified download directory
+- Specify a custom file name (files will be numbered sequentially)
+- Option to skip, rename or overwrite a file if one with the same name already exists in the specified download directory
 - Alternatively, skip the download of all files that already exist
 - Download results will be displayed for each file
 
@@ -49,8 +49,6 @@ While there exist other more sophisticated tools with support for many more imag
 
 ## Potential future improvements
 - Add image dimensions to the download log, not just file size
-- Check if an already existing file differs in size from the file that is to be downloaded
-- If desired, allow to overwrite existing files
 - Should the project grow further, rework GUI layout
 
 ## Disclaimer
