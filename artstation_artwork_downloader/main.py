@@ -33,6 +33,7 @@ class ArtStationArtworkDownloader(tk.Tk):
         self.PROGRESS = tk.StringVar()
         BUTTON_WIDTH = 25
         self.SKIP_EXISTING = tk.BooleanVar(value=True)
+        self.OVERWRITE = tk.BooleanVar()
 
         ###/// TOPMENU \\\###
         menubar = tk.Menu(self)
@@ -320,7 +321,7 @@ class ArtStationArtworkDownloader(tk.Tk):
     def _show_about():
         messagebox.showinfo(
             "About",
-            "ArtStation Artwork Project Downloader\n \nAuthor: jrotzetter \nVersion: 1.2.0 \nLicense: MIT",
+            "ArtStation Artwork Project Downloader\n \nAuthor: jrotzetter \nVersion: 2.0.0 \nLicense: MIT",
         )
 
     @staticmethod
@@ -512,31 +513,74 @@ class ArtStationArtworkDownloader(tk.Tk):
             extn = os.path.splitext(clean_url)[1]
         return extn
 
-    def _get_new_name(self, filename: str, ext: str, store_path: str):
+    def _get_new_name(
+        self,
+        filename: str,
+        ext: str,
+        store_path: str,
+        download_size: int | None = None,
+    ) -> str | None:
         """
         Allow user to enter a new name for a file should one with the same name
         already exist in the target directory or skip the renaming
 
-        :param filename: name of the file
-        :param ext: extension of the file
-        :param store_path: path to target directory
+        :param filename: The name of the file (without extension)
+        :type filename: str
+        :param ext: The extension of the file
+        :type ext: str
+        :param store_path: The path to the target directory
+        :type store_path: str
+        :param download_size: Size in bytes of the file to be downloaded
+        (if Content-Lenght is available)
+        :type download_size: int | None
+        :return: Returns either a string or None
+        :rtype: str | None
         """
+        self.OVERWRITE.set(False)
+        file_path = os.path.join(store_path, f"{filename}{ext}")
+
+        if download_size is not None:
+            on_disk = os.path.getsize(file_path)
+            if download_size == on_disk:
+                download_is_bigger = 2
+            elif download_size > on_disk:
+                download_is_bigger = 1
+            elif download_size < on_disk:
+                download_is_bigger = 0
+            else:
+                download_is_bigger = None
+            size_diff = naturalsize(abs(download_size - on_disk))
+        else:
+            download_is_bigger = None
+            size_diff = None
+
         new_filename = renamedialog.ask_rename(
-            "A file with the same name already exists",
-            "Please enter a new filename (without extension):",
-            self.SKIP_EXISTING,
-            parent=self,
+            checkvar=self.SKIP_EXISTING,
+            overwritevar=self.OVERWRITE,
+            file_path=file_path,
             initialvalue=filename,
+            size_diff=size_diff,
+            download_is_bigger=download_is_bigger,
+            parent=self,
         )
+        if new_filename is None and self.OVERWRITE.get():
+            return f"{filename}{ext}"
+
         if new_filename is None or new_filename == "":
             return
+
         new_file = f"{new_filename}{ext}"
-        file_path = os.path.join(store_path, new_file)
-        if os.path.isfile(file_path):
-            new_file = self._get_new_name(filename, ext, store_path)
-            return new_file
-        else:
-            return new_file
+
+        new_file_path = os.path.join(store_path, new_file)
+
+        if os.path.isfile(new_file_path):
+            if download_size is None:
+                new_file = self._get_new_name(new_filename, ext, store_path)
+            else:
+                new_file = self._get_new_name(
+                    new_filename, ext, store_path, download_size
+                )
+        return new_file
 
     def download_image(
         self,
@@ -561,7 +605,16 @@ class ArtStationArtworkDownloader(tk.Tk):
 
                 if os.path.isfile(file_path):
                     if not self.SKIP_EXISTING.get():
-                        new_name = self._get_new_name(filename, ext, store_path)
+                        if not content_length == 0:
+                            new_name = self._get_new_name(
+                                filename, ext, store_path, content_length
+                            )
+                        else:
+                            new_name = self._get_new_name(
+                                filename,
+                                ext,
+                                store_path,
+                            )
 
                     if new_name is None:
                         self.SKIPS += 1
@@ -587,6 +640,9 @@ class ArtStationArtworkDownloader(tk.Tk):
                 diff = naturalsize(abs(content_length - file_size))
                 return f'* Saved: "{file}" with {human_size} - Warning: File size mismatch between local copy and ArtStation by {diff}'
             if new_name is not None:
+                if self.OVERWRITE.get():
+                    self.WARNINGS += 1
+                    return f'* Saved: "{new_name}" with {human_size} - Warning: The original file was overwritten'
                 return f'+ Saved "{file}" as: "{new_name}" with {human_size}'
             return f'+ Saved: "{file}" with {human_size}'
 
