@@ -4,6 +4,7 @@ cloudscraper==1.2.71
 humanize==4.15.0
 idna==3.11
 packaging==25.0
+pymage-size==1.7.1
 pyparsing==3.3.1
 pywin32==311
 requests==2.32.5
