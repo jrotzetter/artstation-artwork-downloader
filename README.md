@@ -31,7 +31,7 @@ While there exist other more sophisticated tools with support for many more imag
 1. Select image dimensions (small, medium, large, 4k, 8k)
 1. Select target directory to download images to
 1. Paste hash ID (found after artstation.com/artwork/*hashid*)
-1. Load JSON data (use Fallback Method if an error is encountered)
+1. Load a project's JSON data (use Fallback Method if an error is encountered)
 1. (Optional) Select images that are to be excluded from download
 1. (Optional) Enter a custom file name (files will be numbered sequentually)
 1. Download images
@@ -48,7 +48,6 @@ While there exist other more sophisticated tools with support for many more imag
 6. Execute the main script using `python main.py`
 
 ## Potential future improvements
-- Add image dimensions to the download log, not just file size
 - Should the project grow further, rework GUI layout
 
 ## Disclaimer
