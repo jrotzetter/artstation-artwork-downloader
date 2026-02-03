@@ -13,6 +13,8 @@ from humanize import naturalsize
 import renamedialog
 import pymage_size
 from showinfm import show_in_file_manager
+import re
+from decimal import Decimal
 
 
 class ArtStationArtworkDownloader(tk.Tk):
@@ -54,6 +56,12 @@ class ArtStationArtworkDownloader(tk.Tk):
         menubar.add_cascade(label="Help", menu=help_menu)
         menubar.add_cascade(label="Fallback Method", menu=fallback_menu)
         menubar.add_command(label="Exit", command=self.destroy)
+
+        ###/// LOG FRAME CONTEXT MENU \\\###
+        self.log_lb_menu = tk.Menu(self, tearoff=False)
+        self.log_lb_menu.add_command(
+            label="Show file on disk", command=self.show_on_disk
+        )
 
         ###/// MAIN FRAME \\\###
         self.main_frm = ttk.Frame(master=self)
@@ -303,6 +311,8 @@ class ArtStationArtworkDownloader(tk.Tk):
         log_y_scrollbar.config(command=self.log_lb.yview)
         log_x_scrollbar.config(command=self.log_lb.xview)
 
+        self.log_lb.bind("<Button-3>", self.show_context_menu)
+
         self.log_frm.pack(fill=tk.BOTH, expand=True, padx=10, pady=(0, 10))
         self.log_frm.grid_rowconfigure(0, weight=1)
         self.log_frm.grid_columnconfigure(0, weight=1)
@@ -336,7 +346,7 @@ class ArtStationArtworkDownloader(tk.Tk):
     def _show_about():
         messagebox.showinfo(
             "About",
-            "ArtStation Artwork Project Downloader\n \nAuthor: jrotzetter \nVersion: 2.0.0 \nLicense: MIT",
+            "ArtStation Artwork Project Downloader\n \nAuthor: jrotzetter \nVersion: 2.1.0 \nLicense: MIT",
         )
 
     @staticmethod
@@ -549,6 +559,17 @@ class ArtStationArtworkDownloader(tk.Tk):
         self.update_idletasks()
 
     @staticmethod
+    def _get_decimal_places(num1, num2):
+        def count_decimal_places(d):
+            d = Decimal(str(d))  # Convert via string to avoid float inaccuracies
+            return abs(d.as_tuple().exponent)
+
+        decimal_places_num1 = count_decimal_places(num1)
+        decimal_places_num2 = count_decimal_places(num2)
+        decimal_places = max(decimal_places_num1, decimal_places_num2)
+        return decimal_places
+
+    @staticmethod
     def get_filename(url: str) -> str:
         """
         Get the filename from a URL without the file extension.
@@ -648,12 +669,14 @@ class ArtStationArtworkDownloader(tk.Tk):
         if new_filename is None and self.OVERWRITE.get():
             return f"{filename}{ext}"
 
-        # If the user didn't specify a filename or entered an empty string,
+        # If the user clicked on skip button or entered an empty string,
         # exit function and skip download of this file
         if new_filename is None or new_filename == "":
             return
 
         # Check whether a file with this new name exists
+        if "$N" in new_filename:
+            new_filename = new_filename.replace("$N", filename)
         new_file = f"{new_filename}{ext}"
         new_file_path = os.path.join(save_path, new_file)
 
@@ -768,7 +791,7 @@ class ArtStationArtworkDownloader(tk.Tk):
                 if self.OVERWRITE.get():
                     self.WARNINGS += 1
                     return f'* Saved: "{new_name}" ({width}x{height}, {human_size}) - Warning: The original file was overwritten'
-                return f'+ Saved "{file}" as: "{new_name}" ({width}x{height}, {human_size})'
+                return f'+ Saved: "{file}" as "{new_name}" ({width}x{height}, {human_size})'
             return f'+ Saved: "{file}" ({width}x{height}, {human_size})'
 
         except requests.HTTPError as e:
@@ -795,6 +818,9 @@ class ArtStationArtworkDownloader(tk.Tk):
         img_option = self.img_quality.get()
         custom_name = self.custom_entry.get()
         custom_name_check = self.CUSTOM_NAME.get()
+        starting_counter = 1
+        increment = 1
+        digits = 1
         self.PROGRESS.set("")
         self.progbar["value"] = 0
         self.progbar.update()
@@ -841,10 +867,27 @@ class ArtStationArtworkDownloader(tk.Tk):
 
         with requests.Session() as sess:
             if custom_name_check and not custom_name == "":
-                counter = 1
-                for image in selected_images:
+                # progbar_counter = 1
+                counter = starting_counter
+
+                if isinstance(counter, float) or isinstance(increment, float):
+                    decimal_places = self._get_decimal_places(counter, increment)
+
+                for index, image in enumerate(selected_images, start=1):
                     image_url = image.replace("/large/", f"/{img_option}/")
-                    filename = f"{custom_name}{counter}"
+                    if "$N" in custom_name:
+                        old_filename = self.get_filename(image)
+                        custom_name = custom_name.replace("$N", old_filename)
+                    if len(selected_images) == 1:
+                        filename = custom_name
+                    elif "$#" in custom_name:
+                        if isinstance(counter, float) or isinstance(increment, float):
+                            num_formatted = f"{counter:0{digits}.{decimal_places}f}"
+                        else:
+                            num_formatted = f"{counter:0{digits}d}"
+                        filename = custom_name.replace("$#", num_formatted)
+                    else:
+                        filename = f"{custom_name}{counter}"
                     download_result = self.download_image(
                         image_url,
                         filename,
@@ -870,11 +913,12 @@ class ArtStationArtworkDownloader(tk.Tk):
                         break
 
                     self.log_lb.insert(tk.END, download_result)
-                    self.update_progress(counter, progbar_max)
-                    counter += 1
+                    self.update_progress(index, progbar_max)
+                    # progbar_counter += 1
+                    counter += increment
             else:
-                counter = 1
-                for image in selected_images:
+                # progbar_counter = 1
+                for index, image in enumerate(selected_images, start=1):
                     filename = self.get_filename(image)
                     image_url = image.replace("/large/", f"/{img_option}/")
                     download_result = self.download_image(
@@ -901,14 +945,47 @@ class ArtStationArtworkDownloader(tk.Tk):
                         break
 
                     self.log_lb.insert(tk.END, download_result)
-                    self.update_progress(counter, progbar_max)
-                    counter += 1
+                    self.update_progress(index, progbar_max)
+                    # progbar_counter += 1
 
         self.log_lb.insert(
             tk.END,
             f">>> {progbar_max} Files - Saved: {self.SAVED}, Skipped: {self.SKIPS}, Warnings: {self.WARNINGS}, Errors: {self.ERRORS}",
         )
         self.log_lb.insert(tk.END, "")
+
+    def show_context_menu(self, event):
+        try:
+            self.log_lb_menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            self.log_lb_menu.grab_release()
+
+    def show_on_disk(self):
+        index = self.log_lb.curselection()
+        save_dir = self.SAVE_PATH.get()
+        if not index:
+            messagebox.showwarning("Warning", "No download entry selected")
+        else:
+            element = self.log_lb.get(index)
+            if (
+                element.startswith("+")
+                or element.startswith("*")
+                or element.startswith("^")
+            ):
+                pattern = r'"(.*?)"'
+                result = re.search(pattern, element)
+                if result:
+                    matches = re.findall(pattern, element)
+                    if len(matches) > 1:
+                        file_path = os.path.join(save_dir, matches[-1])
+                        show_in_file_manager(file_path)
+                    else:
+                        file_path = os.path.join(save_dir, matches[0])
+                        show_in_file_manager(file_path)
+                else:
+                    messagebox.showwarning("Warning", "No file found in selection")
+            else:
+                messagebox.showwarning("Warning", "Not a valid selection")
 
 
 if __name__ == "__main__":
