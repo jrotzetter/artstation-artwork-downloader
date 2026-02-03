@@ -16,10 +16,14 @@ While there exist other more sophisticated tools with support for many more imag
 - Get a list of artworks featured on a project page
 - Add or remove individual artworks from the artworks list
 - Exclude images from download by clicking on them
-- Specify a custom file name (files will be numbered sequentially)
+- Specify a custom file name
+  - Files will be numbered sequentially except when only one file is to be downloaded
+  - The original file name can be included anywhere in the custom file name by using the pattern `$N`
+  - The location of a digit/number in the custom file name can be specified by using the pattern `$#` (if omitted, numbers will be appended at the end)
 - Option to skip, rename or overwrite a file if one with the same name already exists in the specified download directory
 - Alternatively, skip the download of all files that already exist
 - Download results will be displayed for each file
+  - _Only Windows/Linux_: A downloaded file can be shown on disk in OS-specific default file explorer by selecting it in _Download Status_ and clicking the option in the context menu (opened through right-click)
 
 ## How to use:
 
@@ -63,3 +67,4 @@ This license means:
 - The _original license_ and copyright notice must be included with copies of this software.
 - Please _link back_ to this repo if you use a significant portion of the source code.
 - The software is provided “as is”, without warranty of any kind.
+
