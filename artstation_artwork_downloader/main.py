@@ -253,7 +253,7 @@ class ArtStationArtworkDownloader(tk.Tk):
             variable=self.CUSTOM_NAME,
             onvalue=True,
             offvalue=False,
-            text="Use custom file name with sequential numbers?",
+            text="Use custom file name?",
             command=lambda v=self.CUSTOM_NAME, e=self.custom_entry: self.show_entry(
                 v, e
             ),
@@ -991,3 +991,4 @@ class ArtStationArtworkDownloader(tk.Tk):
 if __name__ == "__main__":
     app = ArtStationArtworkDownloader()
     app.mainloop()
+
