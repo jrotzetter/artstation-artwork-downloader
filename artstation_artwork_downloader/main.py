@@ -346,7 +346,7 @@ class ArtStationArtworkDownloader(tk.Tk):
     def _show_about():
         messagebox.showinfo(
             "About",
-            "ArtStation Artwork Project Downloader\n \nAuthor: jrotzetter \nVersion: 2.1.0 \nLicense: MIT",
+            "ArtStation Artwork Project Downloader\n \nAuthor: jrotzetter \nVersion: 2.1.1 \nLicense: MIT",
         )
 
     @staticmethod
@@ -810,6 +810,42 @@ class ArtStationArtworkDownloader(tk.Tk):
             self.ERRORS += 1
             return f'! Failed "{url}": {e}'
 
+    @staticmethod
+    def _determine_img_dimension(url: str, img_dim: str, filename: str) -> str:
+        """
+        Determines the dimension in the URL at which the image should be
+        downloaded, updating the URL accordingly. GIF's will always be
+        downloaded at their original size.
+
+        :param url: A string representing the original file URL
+        :type url: str
+        :param img_dim: A string representing the selected image dimension at which the image should be downloaded
+        :type img_dim: str
+        :param filename: A string representing the filename
+        :type filename: str
+        :return: The URL with the chosen image dimension
+        :rtype: str
+        """
+        extn = os.path.splitext(url.split("?", 1)[0])[1]
+
+        if extn == ".gif":
+            return url
+        elif "/original/" in url:
+            answer = messagebox.askquestion(
+                "Download original image?",
+                f'The original image is available. Would you like to download "{filename}" in it\'s original dimension instead of the selected dimension?',
+            )
+            if answer == "yes":
+                return url
+            else:
+                parts = url.rsplit("/", 2)
+                new_url = f"{parts[0]}/{img_dim}/{parts[2]}"
+                return new_url
+        else:
+            parts = url.rsplit("/", 2)
+            new_url = f"{parts[0]}/{img_dim}/{parts[2]}"
+            return new_url
+
     def _download_images(self):
         """
         This function downloads all unselected image URLs from a listbox.
@@ -867,14 +903,12 @@ class ArtStationArtworkDownloader(tk.Tk):
 
         with requests.Session() as sess:
             if custom_name_check and not custom_name == "":
-                # progbar_counter = 1
                 counter = starting_counter
 
                 if isinstance(counter, float) or isinstance(increment, float):
                     decimal_places = self._get_decimal_places(counter, increment)
 
                 for index, image in enumerate(selected_images, start=1):
-                    image_url = image.replace("/large/", f"/{img_option}/")
                     if "$N" in custom_name:
                         old_filename = self.get_filename(image)
                         custom_name = custom_name.replace("$N", old_filename)
@@ -888,6 +922,11 @@ class ArtStationArtworkDownloader(tk.Tk):
                         filename = custom_name.replace("$#", num_formatted)
                     else:
                         filename = f"{custom_name}{counter}"
+
+                    image_url = self._determine_img_dimension(
+                        image, img_option, filename
+                    )
+
                     download_result = self.download_image(
                         image_url,
                         filename,
@@ -914,13 +953,15 @@ class ArtStationArtworkDownloader(tk.Tk):
 
                     self.log_lb.insert(tk.END, download_result)
                     self.update_progress(index, progbar_max)
-                    # progbar_counter += 1
                     counter += increment
             else:
-                # progbar_counter = 1
                 for index, image in enumerate(selected_images, start=1):
                     filename = self.get_filename(image)
-                    image_url = image.replace("/large/", f"/{img_option}/")
+
+                    image_url = self._determine_img_dimension(
+                        image, img_option, filename
+                    )
+
                     download_result = self.download_image(
                         image_url,
                         filename,
@@ -946,7 +987,6 @@ class ArtStationArtworkDownloader(tk.Tk):
 
                     self.log_lb.insert(tk.END, download_result)
                     self.update_progress(index, progbar_max)
-                    # progbar_counter += 1
 
         self.log_lb.insert(
             tk.END,
@@ -991,4 +1031,3 @@ class ArtStationArtworkDownloader(tk.Tk):
 if __name__ == "__main__":
     app = ArtStationArtworkDownloader()
     app.mainloop()
-
