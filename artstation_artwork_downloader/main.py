@@ -346,7 +346,7 @@ class ArtStationArtworkDownloader(tk.Tk):
     def _show_about():
         messagebox.showinfo(
             "About",
-            "ArtStation Artwork Project Downloader\n \nAuthor: jrotzetter \nVersion: 2.1.1 \nLicense: MIT",
+            "ArtStation Artwork Project Downloader\n \nAuthor: jrotzetter \nVersion: 2.1.2 \nLicense: MIT",
         )
 
     @staticmethod
@@ -909,19 +909,23 @@ class ArtStationArtworkDownloader(tk.Tk):
                     decimal_places = self._get_decimal_places(counter, increment)
 
                 for index, image in enumerate(selected_images, start=1):
-                    if "$N" in custom_name:
-                        old_filename = self.get_filename(image)
-                        custom_name = custom_name.replace("$N", old_filename)
-                    if len(selected_images) == 1:
-                        filename = custom_name
-                    elif "$#" in custom_name:
-                        if isinstance(counter, float) or isinstance(increment, float):
-                            num_formatted = f"{counter:0{digits}.{decimal_places}f}"
+                    filename = custom_name
+                    if "$N" in filename:
+                        original_filename = self.get_filename(image)
+                        filename = filename.replace("$N", original_filename)
+                    if len(selected_images) > 1:
+                        if "$#" in filename:
+                            if isinstance(counter, float) or isinstance(
+                                increment, float
+                            ):
+                                num_formatted = f"{counter:0{digits}.{decimal_places}f}"
+                            else:
+                                num_formatted = f"{counter:0{digits}d}"
+                            filename = filename.replace("$#", num_formatted)
                         else:
-                            num_formatted = f"{counter:0{digits}d}"
-                        filename = custom_name.replace("$#", num_formatted)
+                            filename = f"{custom_name}{counter}"
                     else:
-                        filename = f"{custom_name}{counter}"
+                        filename = custom_name
 
                     image_url = self._determine_img_dimension(
                         image, img_option, filename
