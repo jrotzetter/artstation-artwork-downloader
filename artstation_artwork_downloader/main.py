@@ -1,5 +1,7 @@
 # Copyright (C) 2025 Jérémy Rotzetter
 
+__version__ = "2.2.0"
+
 import tkinter as tk
 from tkinter import ttk
 from tkinter import filedialog
@@ -313,13 +315,21 @@ class ArtStationArtworkDownloader(tk.Tk):
 
         self.log_lb.bind("<Button-3>", self.show_context_menu)
 
-        self.log_frm.pack(fill=tk.BOTH, expand=True, padx=10, pady=(0, 10))
+        self.log_frm.pack(fill=tk.BOTH, expand=True, padx=10, pady=(0, 5))
         self.log_frm.grid_rowconfigure(0, weight=1)
         self.log_frm.grid_columnconfigure(0, weight=1)
 
         self.log_lb.grid(row=0, column=0, padx=5, pady=5, sticky="EW")
         log_y_scrollbar.grid(row=0, column=1, sticky="NS")
         log_x_scrollbar.grid(row=1, column=0, sticky="EW")
+
+        self.clear_log_btn = ttk.Button(
+            master=self.main_frm,
+            text="Clear download log",
+            width=BUTTON_WIDTH,
+            command=lambda: self.log_lb.delete(0, tk.END),
+        )
+        self.clear_log_btn.pack(anchor="e", padx=32, pady=(0, 5))
 
     ###/// FUNCTIONS \\\###
     def center_window(self, windowWidth: int, windowHeight: int):
@@ -346,7 +356,7 @@ class ArtStationArtworkDownloader(tk.Tk):
     def _show_about():
         messagebox.showinfo(
             "About",
-            "ArtStation Artwork Project Downloader\n \nAuthor: jrotzetter \nVersion: 2.1.2 \nLicense: MIT",
+            f"ArtStation Artwork Project Downloader\n \nAuthor: jrotzetter \nVersion: {__version__} \nLicense: MIT",
         )
 
     @staticmethod
