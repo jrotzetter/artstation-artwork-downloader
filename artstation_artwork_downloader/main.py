@@ -1,6 +1,6 @@
 # Copyright (C) 2025 Jérémy Rotzetter
 
-__version__ = "2.2.0"
+__version__ = "2.2.1"
 
 import tkinter as tk
 from tkinter import ttk
@@ -933,9 +933,7 @@ class ArtStationArtworkDownloader(tk.Tk):
                                 num_formatted = f"{counter:0{digits}d}"
                             filename = filename.replace("$#", num_formatted)
                         else:
-                            filename = f"{custom_name}{counter}"
-                    else:
-                        filename = custom_name
+                            filename = f"{filename}{counter}"
 
                     image_url = self._determine_img_dimension(
                         image, img_option, filename
