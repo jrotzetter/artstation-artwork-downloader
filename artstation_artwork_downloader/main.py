@@ -64,6 +64,13 @@ class ArtStationArtworkDownloader(tk.Tk):
         self.image_list_menu.add_command(
             label="Copy filename", command=lambda: self.copy_filename(self.image_list)
         )
+        self.image_list_menu.add_command(
+            label="Select all", command=lambda: self.image_list.selection_set(0, tk.END)
+        )
+        self.image_list_menu.add_command(
+            label="Clear selection",
+            command=lambda: self.image_list.selection_clear(0, tk.END),
+        )
 
         ###/// LOG FRAME CONTEXT MENU \\\###
         self.log_lb_menu = tk.Menu(self, tearoff=False)
