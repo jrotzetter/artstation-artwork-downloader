@@ -226,7 +226,7 @@ class ArtStationArtworkDownloader(tk.Tk):
         self.output_frm = ttk.LabelFrame(
             master=self.main_frm,
             relief="groove",
-            text="Choose images to exclude (optional)",
+            text="Choose artworks to download:",
         )
 
         img_y_scrollbar = tk.Scrollbar(self.output_frm, orient="vertical")
@@ -383,7 +383,7 @@ class ArtStationArtworkDownloader(tk.Tk):
             "1. Select a save location and image dimensions\n"
             "2. Paste hash ID (found after artstation.com/artwork/)\n"
             "3. Load JSON from URL (if error use Fallback Method)\n"
-            "4. Select images that are to be excluded from download\n"
+            "4. Select images that are to be downloaded\n"
             "5. Download images",
         )
 
@@ -919,11 +919,13 @@ class ArtStationArtworkDownloader(tk.Tk):
         # Get the indices of current selection from the listbox
         selections = self.image_list.curselection()
 
-        all_items = self.image_list.get(0, tk.END)
+        # all_items = self.image_list.get(0, tk.END)
         # Get all unselected items, which are the ones that will be downloaded
-        selected_images = [
-            item for index, item in enumerate(all_items) if index not in selections
-        ]
+        # selected_images = [
+        #     item for index, item in enumerate(all_items) if index not in selections
+        # ]
+        # Get URLs of all selected items for download
+        selected_images = [self.image_list.get(index) for index in selections]
         progbar_max = len(selected_images)
         self.progbar.config(maximum=progbar_max)
         self.PROGRESS.set(f"0/{progbar_max}")
