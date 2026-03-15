@@ -15,11 +15,14 @@ While there exist other more sophisticated tools with support for many more imag
 - Choose the image dimensions from a predefined list provided by ArtStation
 - Get a list of artworks featured on a project page
 - Add or remove individual artworks from the artworks list
-- Exclude images from download by clicking on them
+- Select which images to download by clicking on them in the list
+  - _Only Windows/Linux_: option in context menu (opened through right-click) to select or deselect all artwork URLs
+  - _Only Windows/Linux_: option in context menu to copy the file name of a single selected URL to the clipboard
 - Specify a custom file name
   - Files will be numbered sequentially except when only one file is to be downloaded
   - The original file name can be included anywhere in the custom file name by using the pattern `$N`
   - The location of a digit/number in the custom file name can be specified by using the pattern `$#` (if omitted, numbers will be appended at the end)
+  - The starting counter for the custom file name can be set by including the pattern `$#{d+}`, where `d+` represents one or more digits
 - Option to skip, rename or overwrite a file if one with the same name already exists in the specified download directory
 - Alternatively, skip the download of all files that already exist
 - Download results will be displayed for each file
@@ -36,7 +39,7 @@ While there exist other more sophisticated tools with support for many more imag
 1. Select target directory to download images to
 1. Paste hash ID (found after artstation.com/artwork/*hashid*)
 1. Load a project's JSON data (use Fallback Method if an error is encountered)
-1. (Optional) Select images that are to be excluded from download
+1. Select which images are to be downloaded
 1. (Optional) Enter a custom file name (files will be numbered sequentually)
 1. Download images
 

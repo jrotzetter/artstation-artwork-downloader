@@ -1,3 +1,12 @@
+# Changelog v2.3.0
+- Files that are to be downloaded **must now be selected**, while unselected images are ignored
+- Added context menu (right-click) option to:
+  - copy file name (without file extension) from selected URL directly to clipboard
+  - select all artwork URLs
+  - deselect all artwork URLs
+- The starting counter for the custom file name can now be set using the pattern `$#{d+}`, where `d+` represents one or more digits
+- For single file downloads, a counter can be included in custom file names through the use of `$#` or `$#{d+}`
+
 # Changelog v2.2.1
 - Fixed issue where using `$N` pattern in custom name with either a single file or multiple files without the `$#` pattern resulted in custom name with unedited $N being used
 
