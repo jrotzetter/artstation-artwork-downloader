@@ -59,6 +59,12 @@ class ArtStationArtworkDownloader(tk.Tk):
         menubar.add_cascade(label="Fallback Method", menu=fallback_menu)
         menubar.add_command(label="Exit", command=self.destroy)
 
+        ###/// IMAGES FRAME CONTEXT MENU \\\###
+        self.image_list_menu = tk.Menu(self, tearoff=False)
+        self.image_list_menu.add_command(
+            label="Copy filename", command=lambda: self.copy_filename(self.image_list)
+        )
+
         ###/// LOG FRAME CONTEXT MENU \\\###
         self.log_lb_menu = tk.Menu(self, tearoff=False)
         self.log_lb_menu.add_command(
@@ -226,6 +232,9 @@ class ArtStationArtworkDownloader(tk.Tk):
         )
         img_y_scrollbar.config(command=self.image_list.yview)
         img_x_scrollbar.config(command=self.image_list.xview)
+
+        self.image_list.context_menu = self.image_list_menu  # Attach menu to widget
+        self.image_list.bind("<Button-3>", self.show_context_menu)
 
         self.output_frm.pack(fill=tk.BOTH, expand=True, padx=10, pady=(5, 10))
         self.output_frm.grid_rowconfigure(0, weight=1)
@@ -1019,6 +1028,29 @@ class ArtStationArtworkDownloader(tk.Tk):
             menu.tk_popup(event.x_root, event.y_root)
         finally:
             menu.grab_release()
+
+    def copy_filename(self, listbox: tk.Listbox):
+        """
+        Copy the filename without the file extension from a selected URL in a
+        listbox directly to the clipboard.
+
+        :param listbox: tkinter.Listbox widget with selected URL from which
+         the filename should be obtained
+        :type listbox: tkinter.Listbox
+        """
+        index = listbox.curselection()
+        if not index:
+            messagebox.showwarning("Warning", "No download entry selected")
+        elif len(index) > 1:
+            messagebox.showwarning("Warning", "More than one entry selected")
+            return
+        else:
+            url = listbox.get(index)
+            clean_url = url.split("?", 1)[0]
+            basename = os.path.basename(clean_url)
+            cleaned_name = os.path.splitext(basename)[0]
+            self.clipboard_clear()
+            self.clipboard_append(cleaned_name)
 
     def show_on_disk(self, listbox: tk.Listbox):
         index = listbox.curselection()
