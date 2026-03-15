@@ -1,6 +1,6 @@
 # Copyright (C) 2025 Jérémy Rotzetter
 
-__version__ = "2.2.1"
+__version__ = "2.3.0"
 
 import tkinter as tk
 from tkinter import ttk
@@ -62,7 +62,7 @@ class ArtStationArtworkDownloader(tk.Tk):
         ###/// LOG FRAME CONTEXT MENU \\\###
         self.log_lb_menu = tk.Menu(self, tearoff=False)
         self.log_lb_menu.add_command(
-            label="Show file on disk", command=self.show_on_disk
+            label="Show file on disk", command=lambda: self.show_on_disk(self.log_lb)
         )
 
         ###/// MAIN FRAME \\\###
@@ -313,6 +313,7 @@ class ArtStationArtworkDownloader(tk.Tk):
         log_y_scrollbar.config(command=self.log_lb.yview)
         log_x_scrollbar.config(command=self.log_lb.xview)
 
+        self.log_lb.context_menu = self.log_lb_menu  # Attach menu to widget
         self.log_lb.bind("<Button-3>", self.show_context_menu)
 
         self.log_frm.pack(fill=tk.BOTH, expand=True, padx=10, pady=(0, 5))
@@ -1007,18 +1008,25 @@ class ArtStationArtworkDownloader(tk.Tk):
         self.log_lb.insert(tk.END, "")
 
     def show_context_menu(self, event):
-        try:
-            self.log_lb_menu.tk_popup(event.x_root, event.y_root)
-        finally:
-            self.log_lb_menu.grab_release()
+        # Get the widget that triggered the event (i.e. was right-clicked)
+        widget = event.widget
 
-    def show_on_disk(self):
-        index = self.log_lb.curselection()
+        menu = getattr(widget, "context_menu", None)
+        if menu is None:
+            print(f"Debug: No context menu assigned to {widget}")
+            return
+        try:
+            menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            menu.grab_release()
+
+    def show_on_disk(self, listbox: tk.Listbox):
+        index = listbox.curselection()
         save_dir = self.SAVE_PATH.get()
         if not index:
             messagebox.showwarning("Warning", "No download entry selected")
         else:
-            element = self.log_lb.get(index)
+            element = listbox.get(index)
             if (
                 element.startswith("+")
                 or element.startswith("*")
