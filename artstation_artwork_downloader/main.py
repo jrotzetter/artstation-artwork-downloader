@@ -226,7 +226,7 @@ class ArtStationArtworkDownloader(tk.Tk):
         self.output_frm = ttk.LabelFrame(
             master=self.main_frm,
             relief="groove",
-            text="Choose artworks to download:",
+            text="Choose which artworks to download:",
         )
 
         img_y_scrollbar = tk.Scrollbar(self.output_frm, orient="vertical")
@@ -919,11 +919,6 @@ class ArtStationArtworkDownloader(tk.Tk):
         # Get the indices of current selection from the listbox
         selections = self.image_list.curselection()
 
-        # all_items = self.image_list.get(0, tk.END)
-        # Get all unselected items, which are the ones that will be downloaded
-        # selected_images = [
-        #     item for index, item in enumerate(all_items) if index not in selections
-        # ]
         # Get URLs of all selected items for download
         selected_images = [self.image_list.get(index) for index in selections]
         progbar_max = len(selected_images)
@@ -932,7 +927,12 @@ class ArtStationArtworkDownloader(tk.Tk):
 
         with requests.Session() as sess:
             if custom_name_check and not custom_name == "":
-                counter = starting_counter
+                custom_counter_match = re.search(r"\$\#{(\d+)}", custom_name)
+                if custom_counter_match:
+                    # Get first capturing group, which should be the new starting counter
+                    counter = int(custom_counter_match.group(1))
+                else:
+                    counter = starting_counter
 
                 if isinstance(counter, float) or isinstance(increment, float):
                     decimal_places = self._get_decimal_places(counter, increment)
@@ -942,17 +942,18 @@ class ArtStationArtworkDownloader(tk.Tk):
                     if "$N" in filename:
                         original_filename = self.get_filename(image)
                         filename = filename.replace("$N", original_filename)
-                    if len(selected_images) > 1:
-                        if "$#" in filename:
-                            if isinstance(counter, float) or isinstance(
-                                increment, float
-                            ):
-                                num_formatted = f"{counter:0{digits}.{decimal_places}f}"
-                            else:
-                                num_formatted = f"{counter:0{digits}d}"
-                            filename = filename.replace("$#", num_formatted)
+                    if custom_counter_match or "$#" in filename:
+                        if isinstance(counter, float) or isinstance(increment, float):
+                            num_formatted = f"{counter:0{digits}.{decimal_places}f}"
                         else:
-                            filename = f"{filename}{counter}"
+                            num_formatted = f"{counter:0{digits}d}"
+
+                        if custom_counter_match:
+                            filename = re.sub(r"\$\#{(\d+)}", num_formatted, filename)
+                        else:
+                            filename = filename.replace("$#", num_formatted)
+                    elif len(selected_images) > 1:
+                        filename = f"{filename}{counter}"
 
                     image_url = self._determine_img_dimension(
                         image, img_option, filename
