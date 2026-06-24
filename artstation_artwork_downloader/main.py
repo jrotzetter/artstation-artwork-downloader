@@ -1,6 +1,6 @@
-# Copyright (C) 2025 Jérémy Rotzetter
+# Copyright (c) 2025-2026 Jérémy Rotzetter
 
-__version__ = "2.3.0"
+__version__ = "2.4.0"
 
 import tkinter as tk
 from tkinter import ttk
@@ -17,6 +17,7 @@ import pymage_size
 from showinfm import show_in_file_manager
 import re
 from decimal import Decimal
+from custom_themes import light_theme, dark_theme
 
 
 class ArtStationArtworkDownloader(tk.Tk):
@@ -31,6 +32,12 @@ class ArtStationArtworkDownloader(tk.Tk):
         # print(ttk.Style().theme_names())
         # print(ttk.Style().lookup("TButton", "font"))
 
+        self.style.theme_create("light", parent="clam", settings=light_theme)
+        self.style.theme_create("dark", parent="clam", settings=dark_theme)
+        self.style.theme_use("light")
+
+        self.current_theme = "light"
+
         ###/// GLOBAL VARIABLES \\\###
         self.SAVE_PATH = tk.StringVar()
         self.LOADED_JSON = tk.StringVar()
@@ -42,22 +49,25 @@ class ArtStationArtworkDownloader(tk.Tk):
         self.OVERWRITE = tk.BooleanVar()
 
         ###/// TOPMENU \\\###
-        menubar = tk.Menu(self)
-        self.config(menu=menubar)
+        self.menubar = tk.Menu(self)
+        self.config(menu=self.menubar)
 
-        help_menu = tk.Menu(menubar, tearoff=0)
+        help_menu = tk.Menu(self.menubar, tearoff=0)
         help_menu.add_command(label="About...", command=self._show_about)
         help_menu.add_command(label="How to use...", command=self._show_use)
 
-        fallback_menu = tk.Menu(menubar, tearoff=0)
+        fallback_menu = tk.Menu(self.menubar, tearoff=0)
         fallback_menu.add_command(label="Get URL to JSON", command=self.get_json_url)
         fallback_menu.add_command(
             label="Load JSON from clipboard", command=self.load_json_clp
         )
 
-        menubar.add_cascade(label="Help", menu=help_menu)
-        menubar.add_cascade(label="Fallback Method", menu=fallback_menu)
-        menubar.add_command(label="Exit", command=self.destroy)
+        self.menubar.add_cascade(label="Help", menu=help_menu)
+        self.menubar.add_cascade(label="Fallback Method", menu=fallback_menu)
+        self.menubar.add_command(
+            label="Switch to Dark Mode ", command=self._change_theme
+        )
+        self.menubar.add_command(label="Exit", command=self.destroy)
 
         ###/// IMAGES FRAME CONTEXT MENU \\\###
         self.image_list_menu = tk.Menu(self, tearoff=False)
@@ -229,16 +239,16 @@ class ArtStationArtworkDownloader(tk.Tk):
             text="Choose which artworks to download:",
         )
 
-        img_y_scrollbar = tk.Scrollbar(self.output_frm, orient="vertical")
-        img_x_scrollbar = tk.Scrollbar(self.output_frm, orient="horizontal")
+        self.img_y_scrollbar = ttk.Scrollbar(self.output_frm, orient="vertical")
+        self.img_x_scrollbar = ttk.Scrollbar(self.output_frm, orient="horizontal")
         self.image_list = tk.Listbox(
             master=self.output_frm,
             selectmode="multiple",
-            yscrollcommand=img_y_scrollbar.set,
-            xscrollcommand=img_x_scrollbar.set,
+            yscrollcommand=self.img_y_scrollbar.set,
+            xscrollcommand=self.img_x_scrollbar.set,
         )
-        img_y_scrollbar.config(command=self.image_list.yview)
-        img_x_scrollbar.config(command=self.image_list.xview)
+        self.img_y_scrollbar.config(command=self.image_list.yview)
+        self.img_x_scrollbar.config(command=self.image_list.xview)
 
         self.image_list.context_menu = self.image_list_menu  # Attach menu to widget
         self.image_list.bind("<Button-3>", self.show_context_menu)
@@ -248,8 +258,8 @@ class ArtStationArtworkDownloader(tk.Tk):
         self.output_frm.grid_columnconfigure(0, weight=1)
 
         self.image_list.grid(row=0, column=0, padx=5, pady=5, sticky="EW")
-        img_y_scrollbar.grid(row=0, column=1, sticky="NS")
-        img_x_scrollbar.grid(row=1, column=0, sticky="EW")
+        self.img_y_scrollbar.grid(row=0, column=1, sticky="NS")
+        self.img_x_scrollbar.grid(row=1, column=0, sticky="EW")
 
         ###/// DOWNLOAD FRAME \\\###
         self.run_frm = ttk.Frame(master=self.main_frm, relief="groove")
@@ -317,17 +327,17 @@ class ArtStationArtworkDownloader(tk.Tk):
             text="Download Status:",
         )
 
-        log_y_scrollbar = tk.Scrollbar(self.log_frm, orient="vertical")
-        log_x_scrollbar = tk.Scrollbar(self.log_frm, orient="horizontal")
+        self.log_y_scrollbar = ttk.Scrollbar(self.log_frm, orient="vertical")
+        self.log_x_scrollbar = ttk.Scrollbar(self.log_frm, orient="horizontal")
         self.log_lb = tk.Listbox(
             master=self.log_frm,
             selectmode="browse",
             activestyle="none",
-            yscrollcommand=log_y_scrollbar.set,
-            xscrollcommand=log_x_scrollbar.set,
+            yscrollcommand=self.log_y_scrollbar.set,
+            xscrollcommand=self.log_x_scrollbar.set,
         )
-        log_y_scrollbar.config(command=self.log_lb.yview)
-        log_x_scrollbar.config(command=self.log_lb.xview)
+        self.log_y_scrollbar.config(command=self.log_lb.yview)
+        self.log_x_scrollbar.config(command=self.log_lb.xview)
 
         self.log_lb.context_menu = self.log_lb_menu  # Attach menu to widget
         self.log_lb.bind("<Button-3>", self.show_context_menu)
@@ -337,8 +347,8 @@ class ArtStationArtworkDownloader(tk.Tk):
         self.log_frm.grid_columnconfigure(0, weight=1)
 
         self.log_lb.grid(row=0, column=0, padx=5, pady=5, sticky="EW")
-        log_y_scrollbar.grid(row=0, column=1, sticky="NS")
-        log_x_scrollbar.grid(row=1, column=0, sticky="EW")
+        self.log_y_scrollbar.grid(row=0, column=1, sticky="NS")
+        self.log_x_scrollbar.grid(row=1, column=0, sticky="EW")
 
         self.clear_log_btn = ttk.Button(
             master=self.main_frm,
@@ -386,6 +396,36 @@ class ArtStationArtworkDownloader(tk.Tk):
             "4. Select images that are to be downloaded\n"
             "5. Download images",
         )
+
+    def _change_theme(self):
+        """
+        Toggle the application theme between light and dark modes.
+
+        This method inverts the `current_theme` attribute and applies the
+        corresponding color configuration to the main window and child
+        widgets. It also updates the menu bar entry to offer the opposite
+        theme switch.
+        """
+        if self.current_theme == "light":
+            self.style.theme_use("dark")
+            self.configure(bg="#2d2d2d")
+            self.current_theme = "dark"
+            # Dark mode listbox
+            self.image_list.config(bg="#262626", fg="#e5e5e5")
+            self.log_lb.config(bg="#262626", fg="#e5e5e5")
+
+            new_label = "Switch to Light Mode"
+        else:
+            self.style.theme_use("light")
+            self.configure(bg="white")
+            self.current_theme = "light"
+            # Light mode listbox
+            self.image_list.config(bg="white", fg="black")
+            self.log_lb.config(bg="white", fg="black")
+
+            new_label = "Switch to Dark Mode "
+
+        self.menubar.entryconfigure(3, label=new_label)
 
     def select_path(self):
         """
