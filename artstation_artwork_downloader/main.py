@@ -453,11 +453,49 @@ class ArtStationArtworkDownloader(tk.Tk):
         download_path_abs = os.path.abspath(download_path)
         show_in_file_manager(path_or_uri=download_path_abs)
 
+    def extract_hashid(self, raw_input: str) -> str | None:
+        """
+        Extracts and validates a projects hash ID from raw input.
+        Accepts either a raw hash ID or a full ArtStation project URL.
+
+        Returns:
+            str: The valid alphanumeric hash ID.
+            None: If validation fails.
+        """
+        raw_input = raw_input.strip()
+
+        # Handle empty strings
+        if not raw_input:
+            return None
+
+        # Extract hash ID if it is a URL
+        match = re.search(r"artstation\.com/artwork/([a-zA-Z0-9]+)", raw_input)
+
+        if match:
+            hashid = match.group(1)
+        else:
+            # Assume the input is already just the hash ID if no URL pattern is found
+            hashid = raw_input
+
+        # Validate hashid format (should only be alphanumeric)
+        if not re.match(r"^[a-zA-Z0-9]+$", hashid):
+            return None
+
+        return hashid
+
     def get_json_url(self):
         """
         Returns the URL to a project's JSON data on ArtStation and copies it to the clipboard.
         """
-        hashid = self.project_ent.get()
+        raw_input = self.project_ent.get()
+
+        # Extract and validate hash ID
+        hashid = self.extract_hashid(raw_input)
+
+        if not hashid:
+            messagebox.showerror("Error", "No valid Artstation hash ID found in input.")
+            return
+
         url = f"https://www.artstation.com/projects/{hashid}.json"
         self.clipboard_clear()
         self.clipboard_append(url)
@@ -494,16 +532,29 @@ class ArtStationArtworkDownloader(tk.Tk):
 
     def load_json_url(self):
         """
-        Load a project's data from ArtStation and populate a tkinter listbox with an URL image list.
+        Load a project's data from ArtStation and populate a tkinter listbox with a list of image URLs.
+        Uses extract_hashid to handle input parsing.
         """
+        raw_input = self.project_ent.get()
+
+        # Extract and validate hash ID
+        hashid = self.extract_hashid(raw_input)
+
+        if not hashid:
+            messagebox.showerror("Error", "No valid Artstation hash ID found in input.")
+            return
+
+        # Construct URL and fetch data
+        url = f"https://www.artstation.com/projects/{hashid}.json"
+
         try:
-            hashid = self.project_ent.get()
-            url = f"https://www.artstation.com/projects/{hashid}.json"
             scraper = cloudscraper.create_scraper()
             response = scraper.get(url, timeout=15)
             response.raise_for_status()
             json_data = response.json()
+
             self._populate_image_list(json_data)
+
         except Exception as e:
             messagebox.showerror("Error", f"Failed to get JSON:\n\n{e}")
 
