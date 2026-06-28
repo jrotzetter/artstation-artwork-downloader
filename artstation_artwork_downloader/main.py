@@ -154,7 +154,7 @@ class ArtStationArtworkDownloader(tk.Tk):
         self.load_json_frm = ttk.Frame(master=self.json_frm, relief="groove")
 
         self.project_lbl = ttk.Label(
-            master=self.load_json_frm, text="Paste project hash ID:"
+            master=self.load_json_frm, text="Project URL or ID:"
         )
         self.project_ent = ttk.Entry(
             master=self.load_json_frm,
@@ -163,7 +163,7 @@ class ArtStationArtworkDownloader(tk.Tk):
 
         self.load_json_url_btn = ttk.Button(
             master=self.load_json_frm,
-            text="Load JSON from URL",
+            text="Load project",
             width=BUTTON_WIDTH,
             command=self.load_json_url,
         )
