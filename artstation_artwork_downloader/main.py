@@ -55,6 +55,9 @@ class ArtStationArtworkDownloader(tk.Tk):
         help_menu = tk.Menu(self.menubar, tearoff=0)
         help_menu.add_command(label="About...", command=self._show_about)
         help_menu.add_command(label="How to use...", command=self._show_use)
+        help_menu.add_command(
+            label="About custom filenames...", command=self._show_filename_help
+        )
 
         fallback_menu = tk.Menu(self.menubar, tearoff=0)
         fallback_menu.add_command(label="Get URL to JSON", command=self.get_json_url)
@@ -398,6 +401,26 @@ class ArtStationArtworkDownloader(tk.Tk):
             "4. Select the images you want to download\n\n"
             "5. Click 'Download' to save selected images",
         )
+
+    @staticmethod
+    def _show_filename_help():
+        help_text = (
+            "Available patterns for customizing filenames:\n\n"
+            "$N  •  Original Name\n"
+            "Inserts the source filename.\n"
+            "Example: Artwork_$N  becomes  Artwork_artist-image-1.jpg\n\n"
+            "$#  •  Sequence Number\n"
+            "Sets the sequence number position.\n"
+            "Example: I_00$#_mage  becomes  I_001_mage.jpg\n"
+            "(If $# is not included, the number is added to the end)\n\n"
+            "$#{N}  •  Starting Number\n"
+            "Begins the sequence from a specific whole number.\n"
+            "Example: img_$#{5}  becomes  img_5.jpg, img_6.jpg...\n"
+            "Example: img_$#{10}  becomes  img_10.jpg, img_11.jpg...\n\n"
+            "Note: Sequential numbering is applied automatically when downloading multiple images. "
+            "For single-image downloads, no number is added."
+        )
+        messagebox.showinfo("Custom File Naming Options", help_text)
 
     def _change_theme(self):
         """
