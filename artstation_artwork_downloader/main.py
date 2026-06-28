@@ -390,11 +390,13 @@ class ArtStationArtworkDownloader(tk.Tk):
     def _show_use():
         messagebox.showinfo(
             "How to use",
-            "1. Select a save location and image dimensions\n"
-            "2. Paste hash ID (found after artstation.com/artwork/)\n"
-            "3. Load JSON from URL (if error use Fallback Method)\n"
-            "4. Select images that are to be downloaded\n"
-            "5. Download images",
+            "1. Select a save location and image dimensions\n\n"
+            "2. Enter the project URL or ID\n"
+            "   (e.g., https://artstation.com/artwork/abc123 or just abc123)\n\n"
+            "3. Click 'Load project' to fetch artwork data\n"
+            "   (If errors occur, try the Fallback Method)\n\n"
+            "4. Select the images you want to download\n\n"
+            "5. Click 'Download' to save selected images",
         )
 
     def _change_theme(self):
