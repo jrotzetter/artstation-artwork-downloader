@@ -27,6 +27,7 @@ While there exist other more sophisticated tools with support for many more imag
 - Alternatively, skip the download of all files that already exist
 - Download results will be displayed for each file
   - _Only Windows/Linux_: A downloaded file can be shown on disk in OS-specific default file explorer by selecting it in _Download Status_ and clicking the option in the context menu (opened through right-click)
+- Light mode / dark mode switch
 
 ## How to use:
 
@@ -53,9 +54,6 @@ While there exist other more sophisticated tools with support for many more imag
 4. (Optional): create a virtual environment for the dependencies
 5. Run `pip install -r /path/to/requirements.txt` to install required dependencies
 6. Execute the main script using `python main.py`
-
-## Potential future improvements
-- Should the project grow further, rework GUI layout
 
 ## Disclaimer
 This program is intended for personal, non-profit use only and is not optimized for large-scale, high-volume scraping of files. Please source your data for training AI models ethically. Publicly available datasets for experimentation with machine learning and deep learning can be found on [Kaggle](https://www.kaggle.com/datasets).

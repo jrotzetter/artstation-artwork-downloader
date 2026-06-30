@@ -1,3 +1,6 @@
+# Changelog v2.4.0
+- Introduce custom themes to switch between light / dark mode
+
 # Changelog v2.3.0
 - Files that are to be downloaded **must now be selected**, while unselected images are ignored
 - Added context menu (right-click) option to:
