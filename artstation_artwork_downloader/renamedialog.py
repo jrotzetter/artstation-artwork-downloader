@@ -7,10 +7,11 @@
 
 # See https://docs.python.org/3/library/dialog.html#module-tkinter.simpledialog for more information about the original module.
 
+import os
 import tkinter as tk
 from tkinter import simpledialog
+
 from showinfm import show_in_file_manager
-import os
 
 
 class AskRenameDialog(simpledialog.Dialog):

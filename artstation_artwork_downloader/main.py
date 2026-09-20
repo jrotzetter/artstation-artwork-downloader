@@ -2,22 +2,21 @@
 
 __version__ = "2.4.0"
 
-import tkinter as tk
-from tkinter import ttk
-from tkinter import filedialog
-from tkinter import messagebox
 import json
 import os
-import requests
-import secrets
-import cloudscraper
-from humanize import naturalsize
-import renamedialog
-import pymage_size
-from showinfm import show_in_file_manager
 import re
+import secrets
+import tkinter as tk
 from decimal import Decimal
-from custom_themes import light_theme, dark_theme
+from tkinter import filedialog, messagebox, ttk
+
+import cloudscraper
+import pymage_size
+import renamedialog
+import requests
+from custom_themes import dark_theme, light_theme
+from humanize import naturalsize
+from showinfm import show_in_file_manager
 
 
 class ArtStationArtworkDownloader(tk.Tk):
@@ -603,7 +602,7 @@ class ArtStationArtworkDownloader(tk.Tk):
         urls = [
             asset["image_url"] for asset in assets if asset["asset_type"] == "image"
         ]
-        if not len(urls) == 0:
+        if len(urls) != 0:
             for img in urls:
                 self.image_list.insert(tk.END, img)
         else:
@@ -882,7 +881,7 @@ class ArtStationArtworkDownloader(tk.Tk):
                     # If SKIP_EXISTING is not checked, prompt user how to handle
                     # this situation
                     if not self.SKIP_EXISTING.get():
-                        if not content_length == 0:
+                        if content_length != 0:
                             new_name = self._get_new_name(
                                 filename, ext, save_path, content_length
                             )
@@ -922,7 +921,7 @@ class ArtStationArtworkDownloader(tk.Tk):
                 # e.g. file type is not supported by pymage_size
                 width, height = "?", "?"
 
-            if not content_length == 0 and not content_length == file_size:
+            if content_length != 0 and content_length != file_size:
                 # Check if there is a size difference between reported size
                 # found in the response.header (if present) and downloaded file
                 # if there is, that could mean there was a cache HIT and a
@@ -1042,7 +1041,7 @@ class ArtStationArtworkDownloader(tk.Tk):
         self.PROGRESS.set(f"0/{progbar_max}")
 
         with requests.Session() as sess:
-            if custom_name_check and not custom_name == "":
+            if custom_name_check and custom_name != "":
                 custom_counter_match = re.search(r"\$\#{(\d+)}", custom_name)
                 if custom_counter_match:
                     # Get first capturing group, which should be the new starting counter
@@ -1185,11 +1184,7 @@ class ArtStationArtworkDownloader(tk.Tk):
             messagebox.showwarning("Warning", "No download entry selected")
         else:
             element = listbox.get(index)
-            if (
-                element.startswith("+")
-                or element.startswith("*")
-                or element.startswith("^")
-            ):
+            if element.startswith(("+", "*", "^")):
                 pattern = r'"(.*?)"'
                 result = re.search(pattern, element)
                 if result:
