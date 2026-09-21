@@ -3,9 +3,11 @@
 __version__ = "2.4.1"
 
 import json
+import logging
 import os
 import re
 import secrets
+import sys
 import tkinter as tk
 from decimal import Decimal
 from tkinter import filedialog, messagebox, ttk
@@ -18,10 +20,15 @@ from custom_themes import dark_theme, light_theme
 from humanize import naturalsize
 from showinfm import show_in_file_manager
 
+# Module-level logger
+logger = logging.getLogger(__name__)
+
 
 class ArtStationArtworkDownloader(tk.Tk):
     def __init__(self):
         super().__init__()
+        logger.debug("App started")
+        self.protocol("WM_DELETE_WINDOW", self._on_close)
         self.title("ArtStation Artwork Project Downloader")
         self.center_window(900, 820)
         # self.resizable(width=False, height=False)
@@ -69,7 +76,7 @@ class ArtStationArtworkDownloader(tk.Tk):
         self.menubar.add_command(
             label="Switch to Dark Mode ", command=self._change_theme
         )
-        self.menubar.add_command(label="Exit", command=self.destroy)
+        self.menubar.add_command(label="Exit", command=self._on_close)
 
         ###/// IMAGES FRAME CONTEXT MENU \\\###
         self.image_list_menu = tk.Menu(self, tearoff=False)
@@ -381,6 +388,10 @@ class ArtStationArtworkDownloader(tk.Tk):
         # Set the dimensions of the app window and where it is placed
         self.geometry("%dx%d+%d+%d" % (windowWidth, windowHeight, x, y))
 
+    def _on_close(self):
+        logger.debug("App closed")
+        self.destroy()
+
     @staticmethod
     def _show_about():
         messagebox.showinfo(
@@ -536,6 +547,7 @@ class ArtStationArtworkDownloader(tk.Tk):
             data = json.loads(json_string)
             return data
         except json.JSONDecodeError as e:
+            logger.debug("JSON parse failed at position %s: %s", e.pos, e.msg)
             messagebox.showerror("Error", f"Invalid JSON: {e}")
 
     def load_json_clp(self):
@@ -570,6 +582,7 @@ class ArtStationArtworkDownloader(tk.Tk):
 
         # Construct URL and fetch data
         url = f"https://www.artstation.com/projects/{hashid}.json"
+        logger.debug("Fetching %s", url)
 
         try:
             scraper = cloudscraper.create_scraper()
@@ -580,6 +593,7 @@ class ArtStationArtworkDownloader(tk.Tk):
             self._populate_image_list(json_data)
 
         except Exception as e:
+            logger.error("Failed to fetch project data from %s: %s", url, e)
             messagebox.showerror("Error", f"Failed to get JSON:\n\n{e}")
 
     def _populate_image_list(self, json_content):
@@ -919,6 +933,7 @@ class ArtStationArtworkDownloader(tk.Tk):
             except Exception:
                 # Give image width and height as `?` in case there is an error
                 # e.g. file type is not supported by pymage_size
+                logger.debug("Could not get dimensions for %s, using ?/?", file_path)
                 width, height = "?", "?"
 
             if content_length != 0 and content_length != file_size:
@@ -937,20 +952,25 @@ class ArtStationArtworkDownloader(tk.Tk):
             return f'+ Saved: "{file}" ({width}x{height}, {human_size})'
 
         except requests.HTTPError as e:
+            self.ERRORS += 1
+            logger.error("HTTP %s for %s", e.response.status_code, url)
             if e.response.status_code == 429:
-                self.ERRORS += 1
                 # print(e.response.headers["Retry-After"])
                 self.log_lb.insert(tk.END, f"! {e}")
                 return "429"
-            else:
-                self.ERRORS += 1
-                return f'! HTTP error while downloading "{url}": {e}'
+            return f'! HTTP error while downloading "{url}": {e}'
         except requests.Timeout:
             self.ERRORS += 1
+            logger.error("Timeout for %s", url)
             return f'! Timeout reached while fetching "{url}"'
         except requests.RequestException as e:
             self.ERRORS += 1
+            logger.error("Request failed for %s: %s", url, e)
             return f'! Failed "{url}": {e}'
+        except Exception:
+            self.ERRORS += 1
+            logger.exception("Unexpected error downloading %s", url)
+            return f'! Unexpected error for "{url}"'
 
     @staticmethod
     def _determine_img_dimension(url: str, img_dim: str, filename: str) -> str:
@@ -1150,7 +1170,7 @@ class ArtStationArtworkDownloader(tk.Tk):
 
         menu = getattr(widget, "context_menu", None)
         if menu is None:
-            print(f"Debug: No context menu assigned to {widget}")
+            logger.warning(f"No context menu assigned to {widget}")
             return
         try:
             menu.tk_popup(event.x_root, event.y_root)
@@ -1205,5 +1225,28 @@ class ArtStationArtworkDownloader(tk.Tk):
 
 
 if __name__ == "__main__":
+    # Configure logging
+    frozen = getattr(sys, "frozen", False)
+
+    log_dir = (
+        os.path.dirname(sys.executable)
+        if frozen
+        else os.path.dirname(os.path.abspath(__file__))
+    )
+    log_level = (
+        logging.WARNING if frozen else logging.DEBUG
+    )  # WARNING in frozen builds, DEBUG from source
+
+    logging.basicConfig(
+        level=log_level,
+        format="%(asctime)s [%(levelname)s] %(name)s:%(lineno)d - %(message)s",
+        handlers=[
+            logging.FileHandler(
+                os.path.join(log_dir, "artstation_artwork_downloader.log")
+            ),
+            logging.StreamHandler(),  # also to console when running from terminal
+        ],
+    )
+
     app = ArtStationArtworkDownloader()
     app.mainloop()

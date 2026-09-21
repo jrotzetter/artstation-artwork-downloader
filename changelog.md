@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.1] - 2026-09-21
+### Fixed
+- Sanitize custom filename to strip ASCII control and OS-invalid characters to prevent save failures from special characters
+
+### Changed
+- Replaced print-based debugging with logging; log output now written to `artstation_artwork_downloader.log`
+
 ## [2.4.0] - 2026-06-30
 ### Added
 - Introduce custom themes to switch between light / dark mode
@@ -86,6 +93,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Alternatively, skip the download of all files that already exist
   - Download results will be displayed for each file
 
+[2.4.1]: https://github.com/jrotzetter/artstation-artwork-downloader/releases/tag/v2.4.1
 [2.4.0]: https://github.com/jrotzetter/artstation-artwork-downloader/releases/tag/v2.4.0
 [2.3.0]: https://github.com/jrotzetter/artstation-artwork-downloader/releases/tag/v2.3.0
 [2.2.1]: https://github.com/jrotzetter/artstation-artwork-downloader/releases/tag/v2.2.1
