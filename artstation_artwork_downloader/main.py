@@ -1,6 +1,6 @@
 # Copyright (c) 2025-2026 Jérémy Rotzetter
 
-__version__ = "2.4.0"
+__version__ = "2.4.1"
 
 import json
 import os
@@ -1042,6 +1042,9 @@ class ArtStationArtworkDownloader(tk.Tk):
 
         with requests.Session() as sess:
             if custom_name_check and custom_name != "":
+                # Strip characters illegal in Windows filenames (slashes, colons, wildcards, ASCII control chars)
+                custom_name = re.sub(r'[\\/:*?"<>|\x00-\x1f]', "", custom_name).strip()
+
                 custom_counter_match = re.search(r"\$\#{(\d+)}", custom_name)
                 if custom_counter_match:
                     # Get first capturing group, which should be the new starting counter
