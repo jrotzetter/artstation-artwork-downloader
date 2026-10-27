@@ -5,7 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.4.2] - 2026-10-27
+### Fixed
+- Bump `certifi` to 2026.10.23 to address eMudhra/emSign CA compromise
 
 ## [2.4.1] - 2026-09-21
 ### Fixed
@@ -93,6 +95,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Alternatively, skip the download of all files that already exist
   - Download results will be displayed for each file
 
+[2.4.2]: https://github.com/jrotzetter/artstation-artwork-downloader/releases/tag/v2.4.2
 [2.4.1]: https://github.com/jrotzetter/artstation-artwork-downloader/releases/tag/v2.4.1
 [2.4.0]: https://github.com/jrotzetter/artstation-artwork-downloader/releases/tag/v2.4.0
 [2.3.0]: https://github.com/jrotzetter/artstation-artwork-downloader/releases/tag/v2.3.0

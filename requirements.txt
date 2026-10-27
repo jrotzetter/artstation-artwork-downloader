@@ -1,4 +1,4 @@
-certifi==2025.11.12
+certifi==2026.10.23
 charset-normalizer==3.4.4
 cloudscraper==1.2.71
 humanize==4.15.0
