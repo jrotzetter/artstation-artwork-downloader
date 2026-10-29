@@ -1,6 +1,6 @@
 # Copyright (c) 2025-2026 Jérémy Rotzetter
 
-__version__ = "2.4.2"
+__version__ = "2.4.3"
 
 import json
 import logging
@@ -12,10 +12,10 @@ import tkinter as tk
 from decimal import Decimal
 from tkinter import filedialog, messagebox, ttk
 
-import cloudscraper
 import pymage_size
 import renamedialog
 import requests
+from curl_cffi import requests as cffi_requests
 from custom_themes import dark_theme, light_theme
 from humanize import naturalsize
 from showinfm import show_in_file_manager
@@ -585,8 +585,7 @@ class ArtStationArtworkDownloader(tk.Tk):
         logger.debug("Fetching %s", url)
 
         try:
-            scraper = cloudscraper.create_scraper()
-            response = scraper.get(url, timeout=15)
+            response = cffi_requests.get(url, impersonate="chrome", timeout=15)
             response.raise_for_status()
             json_data = response.json()
 
