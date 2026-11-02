@@ -5,9 +5,11 @@ __version__ = "2.4.3"
 import json
 import logging
 import os
+import queue
 import re
 import secrets
 import sys
+import threading
 import tkinter as tk
 from decimal import Decimal
 from tkinter import filedialog, messagebox, ttk
@@ -37,6 +39,8 @@ class ArtStationArtworkDownloader(tk.Tk):
         # self.style.theme_use("clam") # the 'focus' color of the combobox's selection is a part of the 'clam' style
         # print(ttk.Style().theme_names())
         # print(ttk.Style().lookup("TButton", "font"))
+        self._gui_queue = queue.Queue()
+        self._resp_queue = queue.Queue()  # main -> worker responses
 
         self.style.theme_create("light", parent="clam", settings=light_theme)
         self.style.theme_create("dark", parent="clam", settings=dark_theme)
@@ -711,7 +715,7 @@ class ArtStationArtworkDownloader(tk.Tk):
         """
         self.progbar["value"] = index
         self.PROGRESS.set(f"{index}/{total}")
-        self.update_idletasks()
+        # self.update_idletasks()
 
     @staticmethod
     def _get_decimal_places(num1, num2):
@@ -768,6 +772,23 @@ class ArtStationArtworkDownloader(tk.Tk):
             extn = os.path.splitext(clean_url)[1]
         return extn
 
+    def _show_rename_dialog(
+        self, file_path, initialvalue, size_diff, download_is_bigger
+    ):
+        """Runs on the main thread. Returns (new_filename, overwrite_bool)."""
+        self.OVERWRITE.set(False)  # safe: main thread
+        new_filename = renamedialog.ask_rename(
+            checkvar=self.SKIP_EXISTING,
+            overwritevar=self.OVERWRITE,
+            file_path=file_path,
+            initialvalue=initialvalue,
+            size_diff=size_diff,
+            download_is_bigger=download_is_bigger,
+            parent=self,
+        )
+        overwrite = self.OVERWRITE.get()  # safe: main thread
+        return (new_filename, overwrite)
+
     def _get_new_name(
         self,
         filename: str,
@@ -792,7 +813,6 @@ class ArtStationArtworkDownloader(tk.Tk):
         :return: A new filename if `filename` was changed, `None` otherwise
         :rtype: str | None
         """
-        self.OVERWRITE.set(False)
         file_path = os.path.join(save_path, f"{filename}{ext}")
 
         if download_size is not None:
@@ -811,17 +831,20 @@ class ArtStationArtworkDownloader(tk.Tk):
             download_is_bigger = None
             size_diff = None
 
-        new_filename = renamedialog.ask_rename(
-            checkvar=self.SKIP_EXISTING,
-            overwritevar=self.OVERWRITE,
+        result = self._ask_on_main(
+            self._show_rename_dialog,
             file_path=file_path,
             initialvalue=filename,
             size_diff=size_diff,
             download_is_bigger=download_is_bigger,
-            parent=self,
         )
+        new_filename, overwrite = result
+
+        # Store for the caller (download_image) to read
+        self._last_overwrite = overwrite
+
         # If the user clicked on the overwrite button, use the original name
-        if new_filename is None and self.OVERWRITE.get():
+        if new_filename is None and overwrite:
             return f"{filename}{ext}"
 
         # If the user clicked on skip button or entered an empty string,
@@ -852,25 +875,38 @@ class ArtStationArtworkDownloader(tk.Tk):
         session: requests.Session,
         headers: dict[str, str],
         allowed_extn: dict[str, str],
+        skip_existing: bool,
     ) -> str:
         """
-        This function downloads an image from a provided URL, ensuring that it
-        is handled correctly according to the users wishes if a file with the
-        same name already exists.
+        Download an image from a URL and save it to disk, handling naming
+        conflicts, size verification, and dimension extraction.
 
-        :param url: The URL to download the image from
+        The URL is cache-busted, the response is streamed in 8 KB chunks,
+        and the extension is derived from the response (via *allowed_extn*).
+        If the target file already exists and *skip_existing* is False, the
+        user is prompted to skip, rename, or overwrite.
+
+        :param url: The URL to download the image from.
         :type url: str
-        :param filename: The name for the downloaded image (without extension)
+        :param filename: Base name for the saved file (without extension);
+            the actual extension is determined from the response.
         :type filename: str
-        :param save_path: The path where the downloaded image will be saved
+        :param save_path: The path where file will be written.
         :type save_path: str
-        :param session: A session object to handle requests
+        :param session: A ``requests.Session`` used to issue the GET request.
         :type session: requests.Session
-        :param headers: Headers for the request
+        :param headers: HTTP headers to send with the request.
         :type headers: dict[str, str]
-        :param allowed_extn: Dictionary of allowed content-type extensions to look for in the server's response
+        :param allowed_extn: Mapping of allowed content types to file
+            extensions, used to pick the correct extension from the response.
         :type allowed_extn: dict[str, str]
-        :return: Information about the downloads outcome
+        :param skip_existing: If True, silently skip when the target file
+            already exists (no user prompt). If False, the user is asked how
+            to resolve the conflict.
+        :type skip_existing: bool
+        :return: A human-readable status string prefixed with ``+`` (saved),
+            ``^`` (skipped), ``*`` (saved with warning), or ``!`` (failed).
+            Returns ``"429"`` on rate-limit.
         :rtype: str
         """
         try:
@@ -893,7 +929,7 @@ class ArtStationArtworkDownloader(tk.Tk):
                 if os.path.isfile(file_path):
                     # If SKIP_EXISTING is not checked, prompt user how to handle
                     # this situation
-                    if not self.SKIP_EXISTING.get():
+                    if not skip_existing:
                         if content_length != 0:
                             new_name = self._get_new_name(
                                 filename, ext, save_path, content_length
@@ -944,7 +980,9 @@ class ArtStationArtworkDownloader(tk.Tk):
                 diff = naturalsize(abs(content_length - file_size))
                 return f'* Saved: "{file}" ({width}x{height}, {human_size}) - Warning: File size mismatch between local copy and ArtStation by {diff}'
             if new_name is not None:
-                if self.OVERWRITE.get():
+                # OVERWRITE was set by the dialog on the main thread;
+                # read it via the result returned by _show_rename_dialog
+                if self._last_overwrite:
                     self.WARNINGS += 1
                     return f'* Saved: "{new_name}" ({width}x{height}, {human_size}) - Warning: The original file was overwritten'
                 return f'+ Saved: "{file}" as "{new_name}" ({width}x{height}, {human_size})'
@@ -971,8 +1009,7 @@ class ArtStationArtworkDownloader(tk.Tk):
             logger.exception("Unexpected error downloading %s", url)
             return f'! Unexpected error for "{url}"'
 
-    @staticmethod
-    def _determine_img_dimension(url: str, img_dim: str, filename: str) -> str:
+    def _determine_img_dimension(self, url: str, img_dim: str, filename: str) -> str:
         """
         Determines the dimension in the URL at which the image should be
         downloaded, updating the URL accordingly. GIF's will always be
@@ -992,7 +1029,8 @@ class ArtStationArtworkDownloader(tk.Tk):
         if extn == ".gif":
             return url
         elif "/original/" in url:
-            answer = messagebox.askquestion(
+            answer = self._ask_on_main(
+                messagebox.askquestion,
                 "Download original image?",
                 f'The original image is available. Would you like to download "{filename}" in it\'s original dimension instead of the selected dimension?',
             )
@@ -1007,24 +1045,21 @@ class ArtStationArtworkDownloader(tk.Tk):
             new_url = f"{parts[0]}/{img_dim}/{parts[2]}"
             return new_url
 
-    def _download_images(self):
-        """
-        This function downloads all unselected image URLs from a listbox.
-        """
-        save_path = self.SAVE_PATH.get()
-        img_option = self.img_quality.get()
-        custom_name = self.custom_entry.get()
-        custom_name_check = self.CUSTOM_NAME.get()
+    def _download_worker(
+        self,
+        selected_images: list[str],
+        save_path: str,
+        img_option: str,
+        custom_name: str,
+        custom_name_check: bool,
+        skip_existing: bool,
+    ):
+        """This function downloads all selected image URLs. Runs in a background thread. No tkinter calls."""
         starting_counter = 1
         increment = 1
         digits = 1
-        self.PROGRESS.set("")
-        self.progbar["value"] = 0
-        self.progbar.update()
-        self.SAVED = 0
-        self.ERRORS = 0
-        self.SKIPS = 0
-        self.WARNINGS = 0
+        progbar_max = len(selected_images)
+
         HEADERS = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
             "Cache-Control": "max-age=0, no-cache, no-store, must-revalidate",
@@ -1041,35 +1076,18 @@ class ArtStationArtworkDownloader(tk.Tk):
             "image/webp": ".webp",
         }
 
-        if save_path == "":
-            messagebox.showerror(
-                "Error", "Please select a directory in which to save your downloads"
-            )
-            return
-        elif not os.path.exists(save_path):
-            messagebox.showerror("Error", "Directory does not exist")
-            return
-
-        # Get the indices of current selection from the listbox
-        selections = self.image_list.curselection()
-
-        # Get URLs of all selected items for download
-        selected_images = [self.image_list.get(index) for index in selections]
-        progbar_max = len(selected_images)
-        self.progbar.config(maximum=progbar_max)
-        self.PROGRESS.set(f"0/{progbar_max}")
-
         with requests.Session() as sess:
             if custom_name_check and custom_name != "":
                 # Strip characters illegal in Windows filenames (slashes, colons, wildcards, ASCII control chars)
                 custom_name = re.sub(r'[\\/:*?"<>|\x00-\x1f]', "", custom_name).strip()
 
                 custom_counter_match = re.search(r"\$\#{(\d+)}", custom_name)
-                if custom_counter_match:
-                    # Get first capturing group, which should be the new starting counter
-                    counter = int(custom_counter_match.group(1))
-                else:
-                    counter = starting_counter
+                # Get first capturing group, which should be the new starting counter
+                counter = (
+                    int(custom_counter_match.group(1))
+                    if custom_counter_match
+                    else starting_counter
+                )
 
                 if isinstance(counter, float) or isinstance(increment, float):
                     decimal_places = self._get_decimal_places(counter, increment)
@@ -1084,7 +1102,6 @@ class ArtStationArtworkDownloader(tk.Tk):
                             num_formatted = f"{counter:0{digits}.{decimal_places}f}"
                         else:
                             num_formatted = f"{counter:0{digits}d}"
-
                         if custom_counter_match:
                             filename = re.sub(r"\$\#{(\d+)}", num_formatted, filename)
                         else:
@@ -1103,6 +1120,7 @@ class ArtStationArtworkDownloader(tk.Tk):
                         sess,
                         HEADERS,
                         EXTN_FROM_CONTENT_TYPE,
+                        skip_existing,
                     )
                     if download_result == "429":
                         # Since the download of all remaining files will now be
@@ -1110,23 +1128,25 @@ class ArtStationArtworkDownloader(tk.Tk):
                         self.SKIPS += progbar_max - (
                             self.SAVED + self.ERRORS + self.SKIPS
                         )
-                        messagebox.showwarning(
-                            "Warning: 429 Too Many Requests",
-                            "Rate limit exceeded. Best take a break and try again later.",
+                        self._ask_on_main(
+                            messagebox.showwarning,
+                            title="Warning: 429 Too Many Requests",
+                            message="Rate limit exceeded. Best take a break and try again later.",
                         )
-                        self.log_lb.insert(
-                            tk.END,
-                            "< Rate limit exceeded, cancelling download of remaining files...",
+                        self._gui_queue.put(
+                            (
+                                "log",
+                                "< Rate limit exceeded, cancelling download of remaining files...",
+                            )
                         )
                         break
 
-                    self.log_lb.insert(tk.END, download_result)
-                    self.update_progress(index, progbar_max)
+                    self._gui_queue.put(("log", download_result))
+                    self._gui_queue.put(("progress", index, progbar_max))
                     counter += increment
             else:
                 for index, image in enumerate(selected_images, start=1):
                     filename = self.get_filename(image)
-
                     image_url = self._determine_img_dimension(
                         image, img_option, filename
                     )
@@ -1138,30 +1158,88 @@ class ArtStationArtworkDownloader(tk.Tk):
                         sess,
                         HEADERS,
                         EXTN_FROM_CONTENT_TYPE,
+                        skip_existing,
                     )
                     if download_result == "429":
-                        # Cancel the remaining downloads
                         self.SKIPS += progbar_max - (
                             self.SAVED + self.ERRORS + self.SKIPS
                         )
-                        messagebox.showwarning(
-                            "Warning: 429 Too Many Requests",
-                            "Rate limit exceeded. Best take a break and try again later.",
+                        self._ask_on_main(
+                            messagebox.showwarning,
+                            title="Warning: 429 Too Many Requests",
+                            message="Rate limit exceeded. Best take a break and try again later.",
                         )
-                        self.log_lb.insert(
-                            tk.END,
-                            "< Rate limit exceeded, cancelling download of remaining files...",
+                        self._gui_queue.put(
+                            (
+                                "log",
+                                "< Rate limit exceeded, cancelling download of remaining files...",
+                            )
                         )
                         break
 
-                    self.log_lb.insert(tk.END, download_result)
-                    self.update_progress(index, progbar_max)
+                    self._gui_queue.put(("log", download_result))
+                    self._gui_queue.put(("progress", index, progbar_max))
 
-        self.log_lb.insert(
-            tk.END,
-            f">>> {progbar_max} Files - Saved: {self.SAVED}, Skipped: {self.SKIPS}, Warnings: {self.WARNINGS}, Errors: {self.ERRORS}",
+        # Summary
+        summary = (
+            f">>> {progbar_max} Files - Saved: {self.SAVED}, "
+            f"Skipped: {self.SKIPS}, Warnings: {self.WARNINGS}, Errors: {self.ERRORS}"
         )
-        self.log_lb.insert(tk.END, "")
+        self._gui_queue.put(("log", summary))
+        self._gui_queue.put(("log", ""))
+
+    def _download_images(self):
+        """Called by the Download button. Captures state, spawns worker."""
+        # \\ Capture all Tk variable values HERE (main thread) \\
+        save_path = self.SAVE_PATH.get()
+        img_option = self.img_quality.get()
+        custom_name = self.custom_entry.get()
+        custom_name_check = self.CUSTOM_NAME.get()
+        skip_existing = self.SKIP_EXISTING.get()
+
+        if save_path == "":
+            messagebox.showerror(
+                "Error", "Please select a directory in which to save your downloads"
+            )
+            return
+        elif not os.path.exists(save_path):
+            messagebox.showerror("Error", "Directory does not exist")
+            return
+
+        # Capture listbox selection before spawning thread
+        selections = self.image_list.curselection()
+        selected_images = [self.image_list.get(index) for index in selections]
+
+        if not selected_images:
+            return
+
+        # \\ Reset counters (plain ints, safe anywhere) \\
+        self.SAVED = 0
+        self.ERRORS = 0
+        self.SKIPS = 0
+        self.WARNINGS = 0
+
+        # \\ Reset UI (main thread) \\
+        self.PROGRESS.set("")
+        self.progbar.config(maximum=len(selected_images))
+        self.progbar["value"] = 0
+        self.PROGRESS.set(f"0/{len(selected_images)}")
+
+        # \\ Spawn worker \\
+        self._download_thread = threading.Thread(
+            target=self._download_worker,
+            kwargs={
+                "selected_images": selected_images,
+                "save_path": save_path,
+                "img_option": img_option,
+                "custom_name": custom_name,
+                "custom_name_check": custom_name_check,
+                "skip_existing": skip_existing,
+            },
+            daemon=True,
+        )
+        self._download_thread.start()
+        self._poll_queue()  # Start polling if not already running
 
     def show_context_menu(self, event):
         # Get the widget that triggered the event (i.e. was right-clicked)
@@ -1221,6 +1299,44 @@ class ArtStationArtworkDownloader(tk.Tk):
                     messagebox.showwarning("Warning", "No file found in selection")
             else:
                 messagebox.showwarning("Warning", "Not a valid selection")
+
+    # \\\ Main-thread side \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+    def _poll_queue(self):
+        try:
+            while True:
+                msg = self._gui_queue.get_nowait()
+                kind = msg[0]
+
+                if kind == "log":
+                    self.log_lb.insert(tk.END, msg[1])
+                    self.log_lb.see(tk.END)
+
+                elif kind == "progress":
+                    self.update_progress(msg[1], msg[2])
+
+                elif kind == "dialog":
+                    _, dialog_fn, kwargs, result_event = msg
+                    try:
+                        result = dialog_fn(**kwargs)  # Blocks until user responds
+                        self._resp_queue.put(result)
+                    except Exception as e:
+                        self._resp_queue.put(e)
+                    finally:
+                        result_event.set()
+
+        except queue.Empty:
+            pass
+        self.after(100, self._poll_queue)
+
+    # \\\ Background-thread side \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+    def _ask_on_main(self, dialog_fn, **kwargs):
+        """Show a modal dialog on the main thread, return its result here."""
+        event = threading.Event()
+        self._gui_queue.put(("dialog", dialog_fn, kwargs, event))
+        event.wait()  # Block until main thread is done
+        return self._resp_queue.get()  # Grab the user's answer
 
 
 if __name__ == "__main__":
