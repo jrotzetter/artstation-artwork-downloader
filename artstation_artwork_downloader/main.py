@@ -787,6 +787,7 @@ class ArtStationArtworkDownloader(tk.Tk):
             parent=self,
         )
         overwrite = self.OVERWRITE.get()  # safe: main thread
+        self._skip_existing = self.SKIP_EXISTING.get()
         return (new_filename, overwrite)
 
     def _get_new_name(
@@ -875,7 +876,6 @@ class ArtStationArtworkDownloader(tk.Tk):
         session: requests.Session,
         headers: dict[str, str],
         allowed_extn: dict[str, str],
-        skip_existing: bool,
     ) -> str:
         """
         Download an image from a URL and save it to disk, handling naming
@@ -900,10 +900,6 @@ class ArtStationArtworkDownloader(tk.Tk):
         :param allowed_extn: Mapping of allowed content types to file
             extensions, used to pick the correct extension from the response.
         :type allowed_extn: dict[str, str]
-        :param skip_existing: If True, silently skip when the target file
-            already exists (no user prompt). If False, the user is asked how
-            to resolve the conflict.
-        :type skip_existing: bool
         :return: A human-readable status string prefixed with ``+`` (saved),
             ``^`` (skipped), ``*`` (saved with warning), or ``!`` (failed).
             Returns ``"429"`` on rate-limit.
@@ -929,7 +925,7 @@ class ArtStationArtworkDownloader(tk.Tk):
                 if os.path.isfile(file_path):
                     # If SKIP_EXISTING is not checked, prompt user how to handle
                     # this situation
-                    if not skip_existing:
+                    if not self._skip_existing:
                         if content_length != 0:
                             new_name = self._get_new_name(
                                 filename, ext, save_path, content_length
@@ -1052,7 +1048,6 @@ class ArtStationArtworkDownloader(tk.Tk):
         img_option: str,
         custom_name: str,
         custom_name_check: bool,
-        skip_existing: bool,
     ):
         """This function downloads all selected image URLs. Runs in a background thread. No tkinter calls."""
         starting_counter = 1
@@ -1120,7 +1115,6 @@ class ArtStationArtworkDownloader(tk.Tk):
                         sess,
                         HEADERS,
                         EXTN_FROM_CONTENT_TYPE,
-                        skip_existing,
                     )
                     if download_result == "429":
                         # Since the download of all remaining files will now be
@@ -1158,7 +1152,6 @@ class ArtStationArtworkDownloader(tk.Tk):
                         sess,
                         HEADERS,
                         EXTN_FROM_CONTENT_TYPE,
-                        skip_existing,
                     )
                     if download_result == "429":
                         self.SKIPS += progbar_max - (
@@ -1195,7 +1188,7 @@ class ArtStationArtworkDownloader(tk.Tk):
         img_option = self.img_quality.get()
         custom_name = self.custom_entry.get()
         custom_name_check = self.CUSTOM_NAME.get()
-        skip_existing = self.SKIP_EXISTING.get()
+        self._skip_existing = self.SKIP_EXISTING.get()
 
         if save_path == "":
             messagebox.showerror(
@@ -1234,7 +1227,6 @@ class ArtStationArtworkDownloader(tk.Tk):
                 "img_option": img_option,
                 "custom_name": custom_name,
                 "custom_name_check": custom_name_check,
-                "skip_existing": skip_existing,
             },
             daemon=True,
         )
