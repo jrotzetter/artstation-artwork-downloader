@@ -7,19 +7,14 @@ import logging
 import os
 import queue
 import re
-import secrets
 import sys
 import threading
 import tkinter as tk
-from decimal import Decimal
 from tkinter import filedialog, messagebox, ttk
 
-import pymage_size
-import renamedialog
-import requests
 from curl_cffi import requests as cffi_requests
 from custom_themes import dark_theme, light_theme
-from humanize import naturalsize
+from downloader import DownloadWorker
 from showinfm import show_in_file_manager
 
 # Module-level logger
@@ -635,7 +630,8 @@ class ArtStationArtworkDownloader(tk.Tk):
 
             if "images/images" not in clipboard_text:
                 messagebox.showerror(
-                    "Error", "Clipboard does not contain URL to an image artwork"
+                    "Error",
+                    "Clipboard does not contain URL to an artwork on ArtStation",
                 )
                 return
 
@@ -680,30 +676,6 @@ class ArtStationArtworkDownloader(tk.Tk):
         else:
             ent.configure(state="normal")
 
-    @staticmethod
-    def _no_cache(url: str):
-        """
-        Prevent a cache hit to circumvent Cloudflare's 'optimizations'
-
-        Artstation will send different images depending on whether an image
-        is a cache hit or miss due to Cloudflare's 'Polish' image optimization [1].
-        This feature removes image metadata, including color profiles, which can
-        distort the colors [2], and may even recompress an image which might lead to
-        image quality loss [3]. Adding a random dummy query parameter should cause a
-        cache miss and prevent this from happening [1].
-
-        Reference:\n
-        [1] https://github.com/r888888888/danbooru/issues/3528\n
-        [2] https://pwmon.org/p/5470/cloudflare-discolors-web/\n
-        [3] https://blog.cloudflare.com/introducing-polish-automatic-image-optimizati/
-
-        :param url: URL to an artwork image on ArtStation
-        :type url: str
-        """
-        dummy_param = secrets.token_hex(16)
-        # dummy_param = secrets.token_urlsafe(16)
-        return f"{url}&{dummy_param}"
-
     def update_progress(self, index: int, total: int):
         """
         Update the progressbar to reflect the current progress.
@@ -717,470 +689,6 @@ class ArtStationArtworkDownloader(tk.Tk):
         self.PROGRESS.set(f"{index}/{total}")
         # self.update_idletasks()
 
-    @staticmethod
-    def _get_decimal_places(num1, num2):
-        def count_decimal_places(d):
-            d = Decimal(str(d))  # Convert via string to avoid float inaccuracies
-            return abs(d.as_tuple().exponent)
-
-        decimal_places_num1 = count_decimal_places(num1)
-        decimal_places_num2 = count_decimal_places(num2)
-        decimal_places = max(decimal_places_num1, decimal_places_num2)
-        return decimal_places
-
-    @staticmethod
-    def get_filename(url: str) -> str:
-        """
-        Get the filename from a URL without the file extension.
-
-        :param url: URL to file
-        :type url: str
-        """
-        clean_url = url.split("?", 1)[0]
-        basename = os.path.basename(clean_url)
-        cleaned_name = os.path.splitext(basename)[0]
-        return cleaned_name
-
-    @staticmethod
-    def get_extension(
-        url: str, resp: requests.Response, allowed_extn: dict[str, str]
-    ) -> str:
-        """
-        Get the extension of a file from a URL either from server's response
-        Content-Type or from the URL suffix if Content-Type does not exist or
-        is not in the dictionary of the allowed extensions.
-
-        :param url: URL to file
-        :type url: str
-        :param resp: Server's response to HTTP request for file
-        :type resp: requests.Response
-        :param allowed_extn: A dictionary mapping content types to their respective file extensions
-        :type allowed_extn: dict[str, str]
-        :return: The extension of the file. If not explicitly found in `resp.headers`, it's retrieved from the URL itself
-        :rtype: str
-        """
-        # Get extension from Content-Type header...
-        content_type = (
-            resp.headers.get("Content-Type", "").split(";")[0].strip().lower()
-        )
-        extn = allowed_extn.get(content_type)
-
-        # ...else fallback to URL suffix if not known Content-Type
-        # (sometimes files have the wrong extension)
-        if not extn:
-            clean_url = url.split("?", 1)[0]
-            extn = os.path.splitext(clean_url)[1]
-        return extn
-
-    def _show_rename_dialog(
-        self, file_path, initialvalue, size_diff, download_is_bigger
-    ):
-        """Runs on the main thread. Returns (new_filename, overwrite_bool)."""
-        self.OVERWRITE.set(False)  # safe: main thread
-        new_filename = renamedialog.ask_rename(
-            checkvar=self.SKIP_EXISTING,
-            overwritevar=self.OVERWRITE,
-            file_path=file_path,
-            initialvalue=initialvalue,
-            size_diff=size_diff,
-            download_is_bigger=download_is_bigger,
-            parent=self,
-        )
-        overwrite = self.OVERWRITE.get()  # safe: main thread
-        self._skip_existing = self.SKIP_EXISTING.get()
-        return (new_filename, overwrite)
-
-    def _get_new_name(
-        self,
-        filename: str,
-        ext: str,
-        save_path: str,
-        download_size: int | None = None,
-    ) -> str | None:
-        """
-        Allow user to enter a new name for a file should one with the same name
-        already exist in the target directory or skip the renaming process.
-
-        :param filename: The original name of the file (without extension)
-        :type filename: str
-        :param ext: The extension of the file
-        :type ext: str
-        :param save_path: The path to the target directory where files will be saved
-        :type save_path: str
-        :param download_size: The expected size in bytes of the file to be downloaded
-         (if Content-Length is available). If provided, it can indicate whether
-         a previously downloaded file is bigger or smaller than the current one
-        :type download_size: int | None
-        :return: A new filename if `filename` was changed, `None` otherwise
-        :rtype: str | None
-        """
-        file_path = os.path.join(save_path, f"{filename}{ext}")
-
-        if download_size is not None:
-            on_disk = os.path.getsize(file_path)
-            # Check whether the reported download size matches file size on disk
-            if download_size == on_disk:
-                download_is_bigger = 2
-            elif download_size > on_disk:
-                download_is_bigger = 1
-            elif download_size < on_disk:
-                download_is_bigger = 0
-            else:
-                download_is_bigger = None
-            size_diff = naturalsize(abs(download_size - on_disk))
-        else:
-            download_is_bigger = None
-            size_diff = None
-
-        result = self._ask_on_main(
-            self._show_rename_dialog,
-            file_path=file_path,
-            initialvalue=filename,
-            size_diff=size_diff,
-            download_is_bigger=download_is_bigger,
-        )
-        new_filename, overwrite = result
-
-        # Store for the caller (download_image) to read
-        self._last_overwrite = overwrite
-
-        # If the user clicked on the overwrite button, use the original name
-        if new_filename is None and overwrite:
-            return f"{filename}{ext}"
-
-        # If the user clicked on skip button or entered an empty string,
-        # exit function and skip download of this file
-        if new_filename is None or new_filename == "":
-            return
-
-        # Check whether a file with this new name exists
-        if "$N" in new_filename:
-            new_filename = new_filename.replace("$N", filename)
-        new_file = f"{new_filename}{ext}"
-        new_file_path = os.path.join(save_path, new_file)
-
-        if os.path.isfile(new_file_path):
-            if download_size is None:
-                new_file = self._get_new_name(new_filename, ext, save_path)
-            else:
-                new_file = self._get_new_name(
-                    new_filename, ext, save_path, download_size
-                )
-        return new_file
-
-    def download_image(
-        self,
-        url: str,
-        filename: str,
-        save_path: str,
-        session: requests.Session,
-        headers: dict[str, str],
-        allowed_extn: dict[str, str],
-    ) -> str:
-        """
-        Download an image from a URL and save it to disk, handling naming
-        conflicts, size verification, and dimension extraction.
-
-        The URL is cache-busted, the response is streamed in 8 KB chunks,
-        and the extension is derived from the response (via *allowed_extn*).
-        If the target file already exists and *skip_existing* is False, the
-        user is prompted to skip, rename, or overwrite.
-
-        :param url: The URL to download the image from.
-        :type url: str
-        :param filename: Base name for the saved file (without extension);
-            the actual extension is determined from the response.
-        :type filename: str
-        :param save_path: The path where file will be written.
-        :type save_path: str
-        :param session: A ``requests.Session`` used to issue the GET request.
-        :type session: requests.Session
-        :param headers: HTTP headers to send with the request.
-        :type headers: dict[str, str]
-        :param allowed_extn: Mapping of allowed content types to file
-            extensions, used to pick the correct extension from the response.
-        :type allowed_extn: dict[str, str]
-        :return: A human-readable status string prefixed with ``+`` (saved),
-            ``^`` (skipped), ``*`` (saved with warning), or ``!`` (failed).
-            Returns ``"429"`` on rate-limit.
-        :rtype: str
-        """
-        try:
-            # Construct URL to file with added dummy query cache-busting parameter to bypass possible cache hit
-            url_no_cache = self._no_cache(url)
-
-            with session.get(
-                url_no_cache, timeout=15, stream=True, headers=headers
-            ) as resp:
-                # Check if response was successful else raise error
-                resp.raise_for_status()
-                # Get the expected content length (i.e. file size) from response header
-                content_length = int(resp.headers.get("Content-Length", 0))
-                ext = self.get_extension(url_no_cache, resp, allowed_extn)
-                file = f"{filename}{ext}"
-                file_path = os.path.join(save_path, file)
-                new_name = None
-
-                # Check if a file with the same name already exists
-                if os.path.isfile(file_path):
-                    # If SKIP_EXISTING is not checked, prompt user how to handle
-                    # this situation
-                    if not self._skip_existing:
-                        if content_length != 0:
-                            new_name = self._get_new_name(
-                                filename, ext, save_path, content_length
-                            )
-                        else:
-                            new_name = self._get_new_name(
-                                filename,
-                                ext,
-                                save_path,
-                            )
-
-                    # Skip download
-                    if new_name is None:
-                        self.SKIPS += 1
-                        return f'^ Skipped "{file}" as it already exists'
-
-                    file_path = os.path.join(save_path, new_name)
-
-                with open(file_path, "wb") as f:
-                    # Download the image in chunks instead of loading the entire
-                    # file into memory to avoid memory issues
-                    for chunk in resp.iter_content(chunk_size=8192):
-                        if not chunk:
-                            continue  # filters out keep-alive packets so only real file data is written
-                        f.write(chunk)
-
-            self.SAVED += 1
-            # Get file size of downloaded image
-            file_size = os.path.getsize(file_path)
-            human_size = naturalsize(file_size)
-
-            try:
-                # Get image dimensions of downloaded file
-                img_format = pymage_size.get_image_size(file_path)
-                width, height = img_format.get_dimensions()
-            except Exception:
-                # Give image width and height as `?` in case there is an error
-                # e.g. file type is not supported by pymage_size
-                logger.debug("Could not get dimensions for %s, using ?/?", file_path)
-                width, height = "?", "?"
-
-            if content_length != 0 and content_length != file_size:
-                # Check if there is a size difference between reported size
-                # found in the response.header (if present) and downloaded file
-                # if there is, that could mean there was a cache HIT and a
-                # compressed file was downloaded
-                self.WARNINGS += 1
-                diff = naturalsize(abs(content_length - file_size))
-                return f'* Saved: "{file}" ({width}x{height}, {human_size}) - Warning: File size mismatch between local copy and ArtStation by {diff}'
-            if new_name is not None:
-                # OVERWRITE was set by the dialog on the main thread;
-                # read it via the result returned by _show_rename_dialog
-                if self._last_overwrite:
-                    self.WARNINGS += 1
-                    return f'* Saved: "{new_name}" ({width}x{height}, {human_size}) - Warning: The original file was overwritten'
-                return f'+ Saved: "{file}" as "{new_name}" ({width}x{height}, {human_size})'
-            return f'+ Saved: "{file}" ({width}x{height}, {human_size})'
-
-        except requests.HTTPError as e:
-            self.ERRORS += 1
-            logger.error("HTTP %s for %s", e.response.status_code, url)
-            if e.response.status_code == 429:
-                # print(e.response.headers["Retry-After"])
-                self.log_lb.insert(tk.END, f"! {e}")
-                return "429"
-            return f'! HTTP error while downloading "{url}": {e}'
-        except requests.Timeout:
-            self.ERRORS += 1
-            logger.error("Timeout for %s", url)
-            return f'! Timeout reached while fetching "{url}"'
-        except requests.RequestException as e:
-            self.ERRORS += 1
-            logger.error("Request failed for %s: %s", url, e)
-            return f'! Failed "{url}": {e}'
-        except Exception:
-            self.ERRORS += 1
-            logger.exception("Unexpected error downloading %s", url)
-            return f'! Unexpected error for "{url}"'
-
-    def _determine_img_dimension(self, url: str, img_dim: str, filename: str) -> str:
-        """
-        Determines the dimension in the URL at which the image should be
-        downloaded, updating the URL accordingly. GIF's will always be
-        downloaded at their original size.
-
-        :param url: A string representing the original file URL
-        :type url: str
-        :param img_dim: A string representing the selected image dimension at which the image should be downloaded
-        :type img_dim: str
-        :param filename: A string representing the filename
-        :type filename: str
-        :return: The URL with the chosen image dimension
-        :rtype: str
-        """
-        extn = os.path.splitext(url.split("?", 1)[0])[1]
-
-        if extn == ".gif":
-            return url
-        elif "/original/" in url:
-            answer = self._ask_on_main(
-                messagebox.askquestion,
-                "Download original image?",
-                f'The original image is available. Would you like to download "{filename}" in it\'s original dimension instead of the selected dimension?',
-            )
-            if answer == "yes":
-                return url
-            else:
-                parts = url.rsplit("/", 2)
-                new_url = f"{parts[0]}/{img_dim}/{parts[2]}"
-                return new_url
-        else:
-            parts = url.rsplit("/", 2)
-            new_url = f"{parts[0]}/{img_dim}/{parts[2]}"
-            return new_url
-
-    def _download_worker(
-        self,
-        selected_images: list[str],
-        save_path: str,
-        img_option: str,
-        custom_name: str,
-        custom_name_check: bool,
-    ):
-        """This function downloads all selected image URLs. Runs in a background thread. No tkinter calls."""
-        starting_counter = 1
-        increment = 1
-        digits = 1
-        progbar_max = len(selected_images)
-
-        HEADERS = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
-            "Cache-Control": "max-age=0, no-cache, no-store, must-revalidate",
-        }
-        # Most common image extensions
-        EXTN_FROM_CONTENT_TYPE = {
-            "image/avif": ".avif",
-            "image/bmp": ".bmp",
-            "image/gif": ".gif",
-            "image/jpeg": ".jpg",
-            "image/jpg": ".jpg",
-            "image/png": ".png",
-            "image/tiff": ".tiff",
-            "image/webp": ".webp",
-        }
-
-        with requests.Session() as sess:
-            if custom_name_check and custom_name != "":
-                # Strip characters illegal in Windows filenames (slashes, colons, wildcards, ASCII control chars)
-                custom_name = re.sub(r'[\\/:*?"<>|\x00-\x1f]', "", custom_name).strip()
-
-                custom_counter_match = re.search(r"\$\#{(\d+)}", custom_name)
-                # Get first capturing group, which should be the new starting counter
-                counter = (
-                    int(custom_counter_match.group(1))
-                    if custom_counter_match
-                    else starting_counter
-                )
-
-                if isinstance(counter, float) or isinstance(increment, float):
-                    decimal_places = self._get_decimal_places(counter, increment)
-
-                for index, image in enumerate(selected_images, start=1):
-                    filename = custom_name
-                    if "$N" in filename:
-                        original_filename = self.get_filename(image)
-                        filename = filename.replace("$N", original_filename)
-                    if custom_counter_match or "$#" in filename:
-                        if isinstance(counter, float) or isinstance(increment, float):
-                            num_formatted = f"{counter:0{digits}.{decimal_places}f}"
-                        else:
-                            num_formatted = f"{counter:0{digits}d}"
-                        if custom_counter_match:
-                            filename = re.sub(r"\$\#{(\d+)}", num_formatted, filename)
-                        else:
-                            filename = filename.replace("$#", num_formatted)
-                    elif len(selected_images) > 1:
-                        filename = f"{filename}{counter}"
-
-                    image_url = self._determine_img_dimension(
-                        image, img_option, filename
-                    )
-
-                    download_result = self.download_image(
-                        image_url,
-                        filename,
-                        save_path,
-                        sess,
-                        HEADERS,
-                        EXTN_FROM_CONTENT_TYPE,
-                    )
-                    if download_result == "429":
-                        # Since the download of all remaining files will now be
-                        # cancelled, ensure they are also counted as skipped
-                        self.SKIPS += progbar_max - (
-                            self.SAVED + self.ERRORS + self.SKIPS
-                        )
-                        self._ask_on_main(
-                            messagebox.showwarning,
-                            title="Warning: 429 Too Many Requests",
-                            message="Rate limit exceeded. Best take a break and try again later.",
-                        )
-                        self._gui_queue.put(
-                            (
-                                "log",
-                                "< Rate limit exceeded, cancelling download of remaining files...",
-                            )
-                        )
-                        break
-
-                    self._gui_queue.put(("log", download_result))
-                    self._gui_queue.put(("progress", index, progbar_max))
-                    counter += increment
-            else:
-                for index, image in enumerate(selected_images, start=1):
-                    filename = self.get_filename(image)
-                    image_url = self._determine_img_dimension(
-                        image, img_option, filename
-                    )
-
-                    download_result = self.download_image(
-                        image_url,
-                        filename,
-                        save_path,
-                        sess,
-                        HEADERS,
-                        EXTN_FROM_CONTENT_TYPE,
-                    )
-                    if download_result == "429":
-                        self.SKIPS += progbar_max - (
-                            self.SAVED + self.ERRORS + self.SKIPS
-                        )
-                        self._ask_on_main(
-                            messagebox.showwarning,
-                            title="Warning: 429 Too Many Requests",
-                            message="Rate limit exceeded. Best take a break and try again later.",
-                        )
-                        self._gui_queue.put(
-                            (
-                                "log",
-                                "< Rate limit exceeded, cancelling download of remaining files...",
-                            )
-                        )
-                        break
-
-                    self._gui_queue.put(("log", download_result))
-                    self._gui_queue.put(("progress", index, progbar_max))
-
-        # Summary
-        summary = (
-            f">>> {progbar_max} Files - Saved: {self.SAVED}, "
-            f"Skipped: {self.SKIPS}, Warnings: {self.WARNINGS}, Errors: {self.ERRORS}"
-        )
-        self._gui_queue.put(("log", summary))
-        self._gui_queue.put(("log", ""))
-
     def _download_images(self):
         """Called by the Download button. Captures state, spawns worker."""
         # \\ Capture all Tk variable values HERE (main thread) \\
@@ -1188,7 +696,7 @@ class ArtStationArtworkDownloader(tk.Tk):
         img_option = self.img_quality.get()
         custom_name = self.custom_entry.get()
         custom_name_check = self.CUSTOM_NAME.get()
-        self._skip_existing = self.SKIP_EXISTING.get()
+        skip_existing = self.SKIP_EXISTING.get()
 
         if save_path == "":
             messagebox.showerror(
@@ -1206,11 +714,16 @@ class ArtStationArtworkDownloader(tk.Tk):
         if not selected_images:
             return
 
-        # \\ Reset counters (plain ints, safe anywhere) \\
-        self.SAVED = 0
-        self.ERRORS = 0
-        self.SKIPS = 0
-        self.WARNINGS = 0
+        worker = DownloadWorker(
+            on_log=lambda msg: self._gui_queue.put(("log", msg)),
+            on_progress=lambda cur, total: self._gui_queue.put(
+                ("progress", cur, total)
+            ),
+            on_dialog=self._ask_on_main,
+            skipvar=self.SKIP_EXISTING,
+            overwritevar=self.OVERWRITE,
+            parent=self,
+        )
 
         # \\ Reset UI (main thread) \\
         self.PROGRESS.set("")
@@ -1220,13 +733,14 @@ class ArtStationArtworkDownloader(tk.Tk):
 
         # \\ Spawn worker \\
         self._download_thread = threading.Thread(
-            target=self._download_worker,
+            target=worker.run,
             kwargs={
                 "selected_images": selected_images,
                 "save_path": save_path,
                 "img_option": img_option,
                 "custom_name": custom_name,
                 "custom_name_check": custom_name_check,
+                "skip_existing": skip_existing,
             },
             daemon=True,
         )
