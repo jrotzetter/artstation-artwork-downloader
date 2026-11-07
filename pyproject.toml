@@ -1,0 +1,31 @@
+[project]
+name = "artstation-artwork-downloader"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "jrotzetter", email = "131970223+jrotzetter@users.noreply.github.com" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "certifi>=2026.10.23",
+    "cffi>=2.1.1",
+    "charset-normalizer>=3.5.2",
+    "curl-cffi>=0.17.0",
+    "humanize>=4.16.0",
+    "idna>=3.20",
+    "packaging>=26.3",
+    "pycparser>=3.12",
+    "pymage-size>=1.7.1",
+    "pywin32>=312",
+    "requests>=2.34.2",
+    "show-in-file-manager>=1.1.6",
+    "urllib3>=2.8.0",
+]
+
+[project.scripts]
+artstation-artwork-downloader = "artstation_artwork_downloader:main"
+
+[build-system]
+requires = ["uv_build>=0.13.7,<0.14.0"]
+build-backend = "uv_build"
