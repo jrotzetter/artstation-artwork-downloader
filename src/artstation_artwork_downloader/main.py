@@ -36,6 +36,7 @@ class ArtStationArtworkDownloader(tk.Tk):
         # print(ttk.Style().lookup("TButton", "font"))
         self._gui_queue = queue.Queue()
         self._resp_queue = queue.Queue()  # main -> worker responses
+        self._polling = False
 
         self.style.theme_create("light", parent="clam", settings=light_theme)
         self.style.theme_create("dark", parent="clam", settings=dark_theme)
@@ -676,6 +677,15 @@ class ArtStationArtworkDownloader(tk.Tk):
         else:
             ent.configure(state="normal")
 
+    def _set_downloading(self, active: bool):
+        """Enable/disable buttons based on download state."""
+        state = "disabled" if active else "normal"
+        self.run_btn.config(state=state)
+        self.load_json_url_btn.config(state=state)
+        self.clear_json_btn.config(state=state)
+        self.add_artwork.config(state=state)
+        self.remove_artwork.config(state=state)
+
     def update_progress(self, index: int, total: int):
         """
         Update the progressbar to reflect the current progress.
@@ -714,6 +724,12 @@ class ArtStationArtworkDownloader(tk.Tk):
         if not selected_images:
             return
 
+        # Guard: don't start if already polling
+        if self._polling:
+            return
+
+        self._set_downloading(True)
+
         worker = DownloadWorker(
             on_log=lambda msg: self._gui_queue.put(("log", msg)),
             on_progress=lambda cur, total: self._gui_queue.put(
@@ -723,6 +739,7 @@ class ArtStationArtworkDownloader(tk.Tk):
             skipvar=self.SKIP_EXISTING,
             overwritevar=self.OVERWRITE,
             parent=self,
+            on_done=lambda: self._gui_queue.put(("done",)),
         )
 
         # \\ Reset UI (main thread) \\
@@ -745,7 +762,9 @@ class ArtStationArtworkDownloader(tk.Tk):
             daemon=True,
         )
         self._download_thread.start()
-        self._poll_queue()  # Start polling if not already running
+        if not self._polling:  # Start polling if not already running
+            self._polling = True
+            self._poll_queue()
 
     def show_context_menu(self, event):
         # Get the widget that triggered the event (i.e. was right-clicked)
@@ -830,6 +849,11 @@ class ArtStationArtworkDownloader(tk.Tk):
                         self._resp_queue.put(e)
                     finally:
                         result_event.set()
+
+                elif kind == "done":
+                    self._polling = False
+                    self._set_downloading(False)
+                    return  # stop the after-loop
 
         except queue.Empty:
             pass

@@ -157,6 +157,7 @@ class DownloadWorker:
         skipvar,
         overwritevar,
         parent,
+        on_done,
     ):
         """
         :param on_log: Callable to append a line to the log
@@ -172,6 +173,9 @@ class DownloadWorker:
         :type overwritevar: tk.BooleanVar
         :param parent: tk widget (root window), passed to dialogs
         :type parent: tk.Misc
+        :param on_done: Callable invoked in the finally block of run() to signal
+                        the main thread that the batch has finished
+        :type on_done: Callable[[], None]
         """
         self._log = on_log
         self._progress = on_progress
@@ -179,6 +183,7 @@ class DownloadWorker:
         self._skipvar = skipvar
         self._overwritevar = overwritevar
         self._parent = parent
+        self._on_done = on_done
 
         self.saved = 0
         self.errors = 0
@@ -216,22 +221,25 @@ class DownloadWorker:
         self._skip_existing = skip_existing
         progbar_max = len(selected_images)
 
-        if custom_name_check and custom_name != "":
-            self._run_custom(
-                custom_name,
-                selected_images,
-                save_path,
-                img_option,
-                progbar_max,
-            )
-        else:
-            self._run_default(selected_images, save_path, img_option, progbar_max)
+        try:
+            if custom_name_check and custom_name != "":
+                self._run_custom(
+                    custom_name,
+                    selected_images,
+                    save_path,
+                    img_option,
+                    progbar_max,
+                )
+            else:
+                self._run_default(selected_images, save_path, img_option, progbar_max)
 
-        self._log(
-            f">>> {progbar_max} Files - Saved: {self.saved}, "
-            f"Skipped: {self.skips}, Warnings: {self.warnings}, Errors: {self.errors}"
-        )
-        self._log("")
+        finally:
+            self._log(
+                f">>> {progbar_max} Files - Saved: {self.saved}, "
+                f"Skipped: {self.skips}, Warnings: {self.warnings}, Errors: {self.errors}"
+            )
+            self._log("")
+            self._on_done()
 
     # \\ Loops \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
