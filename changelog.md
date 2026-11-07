@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.3] - 2026-11-07
+### Fixed
+- JSON fetches returning 403 (replaced `cloudscraper` with `curl_cffi`)
+- UI freezing during image downloads (moved download loop to background thread)
+
+### Changed
+- Upgraded humanize, packaging, pywin32, show-in-file-manager, requests
+- Upgraded transitive dependencies (charset-normalizer, idna, urllib3)
+
 ## [2.4.2] - 2026-10-27
 ### Fixed
 - Bump `certifi` to 2026.10.23 to address eMudhra/emSign CA compromise
@@ -95,6 +104,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Alternatively, skip the download of all files that already exist
   - Download results will be displayed for each file
 
+[2.4.3]: https://github.com/jrotzetter/artstation-artwork-downloader/releases/tag/v2.4.3
 [2.4.2]: https://github.com/jrotzetter/artstation-artwork-downloader/releases/tag/v2.4.2
 [2.4.1]: https://github.com/jrotzetter/artstation-artwork-downloader/releases/tag/v2.4.1
 [2.4.0]: https://github.com/jrotzetter/artstation-artwork-downloader/releases/tag/v2.4.0
