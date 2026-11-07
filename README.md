@@ -3,7 +3,7 @@
 [![GitHub Release](https://img.shields.io/github/release/jrotzetter/artstation-artwork-downloader?include_prereleases=&sort=semver&color=blue)](https://github.com/jrotzetter/artstation-artwork-downloader/releases/ "View releases")
 [![License](https://img.shields.io/badge/License-MIT-blue)](#license "View license summary")
 [![Issues - artstation-artwork-downloader](https://img.shields.io/github/issues/jrotzetter/artstation-artwork-downloader)](https://github.com/jrotzetter/artstation-artwork-downloader/issues "View open issues")
-[![Made with Python](https://img.shields.io/badge/Python-3.14.0-blue?logo=python&logoColor=white)](https://www.python.org/ "Go to Python homepage")
+[![Made with Python](https://img.shields.io/badge/Python->=3.14.0-blue?logo=python&logoColor=white)](https://www.python.org/ "Go to Python homepage")
 
 ## Overview
 This is a simple Tkinter GUI application for downloading artwork projects from [ArtStation](https://www.artstation.com/). It was initially written as an exercise in webscraping and creating GUI applications with Tkinter.
@@ -49,11 +49,10 @@ While there exist other more sophisticated tools with support for many more imag
 
 ## Installation
 1. Clone the repository or download the zip file
-2. Ensure that you have at least **Python 3.7** installed on your system
+2. Ensure that [uv](https://docs.astral.sh/uv/getting-started/installation/) is installed
 3. Navigate to the project directory in your command line interface (CLI) of choice
-4. (Optional): create a virtual environment for the dependencies
-5. Run `pip install -r /path/to/requirements.txt` to install required dependencies
-6. Execute the main script using `python main.py`
+4. Run `uv sync`. This command automatically creates the virtual environment (.venv) if it does not exist and installs all dependencies specified in the pyproject.toml and locked in the uv.lock file.
+5. Execute the main script: `uv run src/artstation_artwork_downloader/main.py`
 
 ## Disclaimer
 This program is intended for personal, non-profit use only and is not optimized for large-scale, high-volume scraping of files. Please source your data for training AI models ethically. Publicly available datasets for experimentation with machine learning and deep learning can be found on [Kaggle](https://www.kaggle.com/datasets).

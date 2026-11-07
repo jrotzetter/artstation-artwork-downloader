@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.4] - 2026-11-07
+### Fixed
+- Prevent concurrent download batches. Disable Download, Load, Clear, Add, and Remove buttons while a batch is in progress. Fixes the edge case where a double-click spawns two worker threads and two after-loops draining the same GUI queue.
+
+### Changed
+- Migrated from `pip` to [uv](https://github.com/astral-sh/uv) for dependency management
+  (`requirements.txt` removed, replaced by `pyproject.toml` + `uv.lock`).
+
 ## [2.4.3] - 2026-11-07
 ### Fixed
 - JSON fetches returning 403 (replaced `cloudscraper` with `curl_cffi`)
@@ -104,6 +112,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Alternatively, skip the download of all files that already exist
   - Download results will be displayed for each file
 
+[2.4.4]: https://github.com/jrotzetter/artstation-artwork-downloader/releases/tag/v2.4.4
 [2.4.3]: https://github.com/jrotzetter/artstation-artwork-downloader/releases/tag/v2.4.3
 [2.4.2]: https://github.com/jrotzetter/artstation-artwork-downloader/releases/tag/v2.4.2
 [2.4.1]: https://github.com/jrotzetter/artstation-artwork-downloader/releases/tag/v2.4.1
