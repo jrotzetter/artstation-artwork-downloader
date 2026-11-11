@@ -83,8 +83,13 @@ class ArtStationArtworkDownloader(tk.Tk):
         self.image_list_menu.add_command(
             label="Copy filename", command=lambda: self.copy_filename(self.image_list)
         )
+        self.image_list_menu.add_separator()
         self.image_list_menu.add_command(
             label="Select all", command=lambda: self.image_list.selection_set(0, tk.END)
+        )
+        self.image_list_menu.add_command(
+            label="Invert selection",
+            command=lambda: self.invert_selection(self.image_list),
         )
         self.image_list_menu.add_command(
             label="Clear selection",
@@ -825,6 +830,12 @@ class ArtStationArtworkDownloader(tk.Tk):
             cleaned_name = os.path.splitext(basename)[0]
             self.clipboard_clear()
             self.clipboard_append(cleaned_name)
+
+    def invert_selection(self, listbox: tk.Listbox):
+        selection = listbox.curselection()
+        listbox.selection_set(0, tk.END)
+        for item in selection:
+            listbox.selection_clear(item)
 
     def show_on_disk(self, listbox: tk.Listbox):
         index = listbox.curselection()
