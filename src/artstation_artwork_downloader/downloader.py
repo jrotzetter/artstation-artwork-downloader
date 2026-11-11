@@ -157,6 +157,7 @@ class DownloadWorker:
         skipvar,
         overwritevar,
         parent,
+        cancel_event,
         on_done,
     ):
         """
@@ -173,6 +174,9 @@ class DownloadWorker:
         :type overwritevar: tk.BooleanVar
         :param parent: tk widget (root window), passed to dialogs
         :type parent: tk.Misc
+        :param cancel_event: threading.Event checked at the top of each iteration;
+                             when set, the worker stops after the current file
+        :type cancel_event: threading.Event
         :param on_done: Callable invoked in the finally block of run() to signal
                         the main thread that the batch has finished
         :type on_done: Callable[[], None]
@@ -183,6 +187,7 @@ class DownloadWorker:
         self._skipvar = skipvar
         self._overwritevar = overwritevar
         self._parent = parent
+        self._cancel = cancel_event
         self._on_done = on_done
 
         self.saved = 0
@@ -258,6 +263,13 @@ class DownloadWorker:
         """
         with requests.Session() as sess:
             for index, image in enumerate(images, start=1):
+                if self._cancel.is_set():
+                    remaining = total - index + 1
+                    self.skips += remaining
+                    self._log(
+                        f"\u25a0 {remaining} file(s) remaining in queue - skipped"
+                    )
+                    return
                 filename = get_filename(image)
                 image_url = determine_img_dimension(
                     image, img_option, filename, self._ask_original
@@ -294,6 +306,13 @@ class DownloadWorker:
 
         with requests.Session() as sess:
             for index, image in enumerate(images, start=1):
+                if self._cancel.is_set():
+                    remaining = total - index + 1
+                    self.skips += remaining
+                    self._log(
+                        f"\u25a0 {remaining} file(s) remaining in queue - skipped"
+                    )
+                    return
                 filename = custom_name
                 if "$N" in filename:
                     filename = filename.replace("$N", get_filename(image))

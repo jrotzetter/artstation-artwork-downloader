@@ -1,6 +1,6 @@
 # Copyright (c) 2025-2026 Jérémy Rotzetter
 
-__version__ = "2.4.4"
+__version__ = "2.5.0"
 
 import json
 import logging
@@ -36,6 +36,7 @@ class ArtStationArtworkDownloader(tk.Tk):
         # print(ttk.Style().lookup("TButton", "font"))
         self._gui_queue = queue.Queue()
         self._resp_queue = queue.Queue()  # main -> worker responses
+        self._cancel_event = threading.Event()
         self._polling = False
 
         self.style.theme_create("light", parent="clam", settings=light_theme)
@@ -47,7 +48,6 @@ class ArtStationArtworkDownloader(tk.Tk):
         ###/// GLOBAL VARIABLES \\\###
         self.SAVE_PATH = tk.StringVar()
         self.LOADED_JSON = tk.StringVar()
-        self.JSON = tk.StringVar()
         self.CUSTOM_NAME = tk.BooleanVar()
         self.PROGRESS = tk.StringVar()
         BUTTON_WIDTH = 25
@@ -296,9 +296,17 @@ class ArtStationArtworkDownloader(tk.Tk):
             ),
         )
 
+        self.stop_btn = ttk.Button(
+            master=self.run_frm,
+            text="\u25a0 Stop",
+            width=BUTTON_WIDTH,
+            command=self._stop_download,
+            state="disabled",
+        )
+
         self.run_btn = ttk.Button(
             master=self.run_frm,
-            text="Download artworks",
+            text="\u25b6 Download artworks",
             width=BUTTON_WIDTH,
             command=self._download_images,
         )
@@ -310,7 +318,8 @@ class ArtStationArtworkDownloader(tk.Tk):
         self.skip_check.grid(row=0, column=0, padx=10, pady=10)
         self.custom_entry.grid(row=0, column=2, padx=10, pady=10)
         self.custom_name_check.grid(row=0, column=1, padx=10, pady=10)
-        self.run_btn.grid(row=0, column=3, padx=10, pady=10)
+        self.stop_btn.grid(row=0, column=3, padx=10, pady=10)
+        self.run_btn.grid(row=0, column=4, padx=10, pady=10)
 
         ###/// PROGRESSBAR FRAME \\\
         self.progbar_frm = ttk.Frame(master=self.main_frm)
@@ -681,10 +690,23 @@ class ArtStationArtworkDownloader(tk.Tk):
         """Enable/disable buttons based on download state."""
         state = "disabled" if active else "normal"
         self.run_btn.config(state=state)
+        self.stop_btn.config(state="normal" if active else "disabled")
         self.load_json_url_btn.config(state=state)
         self.clear_json_btn.config(state=state)
         self.add_artwork.config(state=state)
         self.remove_artwork.config(state=state)
+
+    def _stop_download(self):
+        """Signal the worker to stop after the current file."""
+        if self._cancel_event.is_set():
+            return
+        self._cancel_event.set()
+        self._log_append("\u25a0 Stop requested - finishing current file...")
+
+    def _log_append(self, msg: str):
+        """Append a line to the log widget. Must be called from the main thread."""
+        self.log_lb.insert(tk.END, msg)
+        self.log_lb.see(tk.END)
 
     def update_progress(self, index: int, total: int):
         """
@@ -728,6 +750,7 @@ class ArtStationArtworkDownloader(tk.Tk):
         if self._polling:
             return
 
+        self._cancel_event.clear()
         self._set_downloading(True)
 
         worker = DownloadWorker(
@@ -739,6 +762,7 @@ class ArtStationArtworkDownloader(tk.Tk):
             skipvar=self.SKIP_EXISTING,
             overwritevar=self.OVERWRITE,
             parent=self,
+            cancel_event=self._cancel_event,
             on_done=lambda: self._gui_queue.put(("done",)),
         )
 
