@@ -842,23 +842,30 @@ class ArtStationArtworkDownloader(tk.Tk):
         save_dir = self.SAVE_PATH.get()
         if not index:
             messagebox.showwarning("Warning", "No download entry selected")
-        else:
-            element = listbox.get(index)
-            if element.startswith(("+", "*", "^")):
-                pattern = r'"(.*?)"'
-                result = re.search(pattern, element)
-                if result:
-                    matches = re.findall(pattern, element)
-                    if len(matches) > 1:
-                        file_path = os.path.join(save_dir, matches[-1])
-                        show_in_file_manager(file_path)
-                    else:
-                        file_path = os.path.join(save_dir, matches[0])
-                        show_in_file_manager(file_path)
-                else:
-                    messagebox.showwarning("Warning", "No file found in selection")
-            else:
-                messagebox.showwarning("Warning", "Not a valid selection")
+            return
+
+        element = listbox.get(index)
+        if not element.startswith(("+", "*", "^")):
+            messagebox.showwarning("Warning", "Not a valid selection")
+            return
+
+        pattern = r'"(.*?)"'
+        matches = re.findall(pattern, element)
+        if not matches:
+            messagebox.showwarning("Warning", "No file found in selection")
+            return
+
+        filename = matches[-1] if len(matches) > 1 else matches[0]
+        file_path = os.path.join(save_dir, filename)
+
+        if not os.path.isfile(file_path):
+            messagebox.showwarning(
+                "Warning",
+                f'File:\n"{filename}"\n\nnot found in save directory:\n"{os.path.basename(save_dir)}"',
+            )
+            return
+
+        show_in_file_manager(file_path)
 
     # \\\ Main-thread side \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
