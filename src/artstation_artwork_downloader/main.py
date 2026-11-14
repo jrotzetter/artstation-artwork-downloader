@@ -9,16 +9,38 @@ import queue
 import re
 import sys
 import threading
+import time
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
 from curl_cffi import requests as cffi_requests
+from curl_cffi.requests.exceptions import HTTPError
 from custom_themes import dark_theme, light_theme
 from downloader import DownloadWorker
 from showinfm import show_in_file_manager
 
+RETRYABLE = {403, 500, 502, 503, 504}
+
 # Module-level logger
 logger = logging.getLogger(__name__)
+
+
+def _fetch_with_retry(session, url, max_retries=3, delay=1.5):
+    """Retry on 403 and common transient 5xx. Raise on 429 and other 4xx."""
+    for attempt in range(1, max_retries + 1):
+        response = session.get(url)
+        if response.status_code in RETRYABLE and attempt < max_retries:
+            logger.warning(
+                "HTTP %d on attempt %d/%d, retrying in %.1fs…",
+                response.status_code,
+                attempt,
+                max_retries,
+                delay,
+            )
+            time.sleep(delay)
+            continue
+        response.raise_for_status()
+        return response
 
 
 class ArtStationArtworkDownloader(tk.Tk):
@@ -38,6 +60,7 @@ class ArtStationArtworkDownloader(tk.Tk):
         self._resp_queue = queue.Queue()  # main -> worker responses
         self._cancel_event = threading.Event()
         self._polling = False
+        self._session = cffi_requests.Session(impersonate="chrome", timeout=15)
 
         self.style.theme_create("light", parent="clam", settings=light_theme)
         self.style.theme_create("dark", parent="clam", settings=dark_theme)
@@ -405,6 +428,7 @@ class ArtStationArtworkDownloader(tk.Tk):
     def _on_close(self):
         logger.debug("App closed")
         self._cancel_event.set()  # Signal worker to stop
+        self._session.close()
         self.destroy()
 
     @staticmethod
@@ -600,11 +624,12 @@ class ArtStationArtworkDownloader(tk.Tk):
         logger.debug("Fetching %s", url)
 
         try:
-            response = cffi_requests.get(url, impersonate="chrome", timeout=15)
-            response.raise_for_status()
-            json_data = response.json()
+            response = _fetch_with_retry(self._session, url)
+            self._populate_image_list(response.json())
 
-            self._populate_image_list(json_data)
+        except HTTPError as e:
+            logger.error("Failed to fetch project data from %s: %s", url, e)
+            messagebox.showerror("Error", f"Failed to get JSON:\n\n{e}")
 
         except Exception as e:
             logger.error("Failed to fetch project data from %s: %s", url, e)
