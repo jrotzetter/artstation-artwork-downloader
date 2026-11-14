@@ -38,6 +38,8 @@ EXTN_FROM_CONTENT_TYPE = {
     "image/webp": ".webp",
 }
 
+MAX_RETRIES = 3
+RETRYABLE_STATUS = {403, 500, 502, 503, 504}
 
 # \\\ Pure utilities \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
@@ -362,11 +364,59 @@ class DownloadWorker:
             # Construct URL to file with added dummy query cache-busting parameter to bypass possible cache hit
             url_no_cache = no_cache(url)
 
-            with sess.get(
-                url_no_cache, timeout=15, stream=True, headers=HEADERS
-            ) as resp:
-                # Check if response was successful else raise error
-                resp.raise_for_status()
+            # --- Retry loop around the GET with backoff ---
+            resp = None
+            for attempt in range(1, MAX_RETRIES + 1):
+                try:
+                    resp = sess.get(
+                        url_no_cache, timeout=15, stream=True, headers=HEADERS
+                    )
+                    # Check if response was successful else raise error
+                    resp.raise_for_status()
+                    break  # Success
+                except requests.Timeout:
+                    if attempt < MAX_RETRIES:
+                        delay = 2 ** (attempt - 1)  # 1s, 2s
+                        self._log(
+                            f"  ... timeout, retrying in {delay}s ({attempt}/{MAX_RETRIES - 1})"
+                        )
+                        if self._cancel.wait(delay):
+                            self.skips += 1
+                            return f'^ Cancelled during retry for "{url}"'
+                        url_no_cache = no_cache(url)  # Fresh cache-bust
+                    else:
+                        raise
+                except requests.ConnectionError:
+                    if attempt < MAX_RETRIES:
+                        delay = 2 ** (attempt - 1)
+                        self._log(
+                            f"  ... connection error, retrying in {delay}s ({attempt}/{MAX_RETRIES - 1})"
+                        )
+                        if self._cancel.wait(delay):
+                            self.skips += 1
+                            return f'^ Cancelled during retry for "{url}"'
+                        url_no_cache = no_cache(url)
+                    else:
+                        raise
+                except requests.HTTPError as e:
+                    if (
+                        e.response.status_code in RETRYABLE_STATUS
+                        and attempt < MAX_RETRIES
+                    ):
+                        delay = 2 ** (attempt - 1)
+                        self._log(
+                            f"  ... HTTP {e.response.status_code}, retrying in {delay}s ({attempt}/{MAX_RETRIES - 1})"
+                        )
+                        resp.close()
+                        if self._cancel.wait(delay):
+                            self.skips += 1
+                            return f'^ Cancelled during retry for "{url}"'
+                        url_no_cache = no_cache(url)
+                    else:
+                        raise
+            # --- End retry loop ---
+
+            with resp:
                 # Get the expected content length (i.e. file size) from response header
                 content_length = int(resp.headers.get("Content-Length", 0))
                 ext = get_extension(url_no_cache, resp, EXTN_FROM_CONTENT_TYPE)
@@ -445,11 +495,11 @@ class DownloadWorker:
             logger.error("HTTP %s for %s", e.response.status_code, url)
             if e.response.status_code == 429:
                 return "429"
-            return f'! HTTP error while downloading "{url}": {e}'
+            return f"! HTTP error after {MAX_RETRIES} attempts: {e}"
         except requests.Timeout:
             self.errors += 1
             logger.error("Timeout for %s", url)
-            return f'! Timeout reached while fetching "{url}"'
+            return f'! Timeout after {MAX_RETRIES} attempts for "{url}"'
         except requests.RequestException as e:
             self.errors += 1
             logger.error("Request failed for %s: %s", url, e)

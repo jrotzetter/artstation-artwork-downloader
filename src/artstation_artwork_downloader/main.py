@@ -404,6 +404,7 @@ class ArtStationArtworkDownloader(tk.Tk):
 
     def _on_close(self):
         logger.debug("App closed")
+        self._cancel_event.set()  # Signal worker to stop
         self.destroy()
 
     @staticmethod
