@@ -360,6 +360,7 @@ class DownloadWorker:
             Returns ``"429"`` on rate-limit.
         :rtype: str
         """
+        file_path = None
         try:
             # Construct URL to file with added dummy query cache-busting parameter to bypass possible cache hit
             url_no_cache = no_cache(url)
@@ -498,16 +499,32 @@ class DownloadWorker:
             return f"! HTTP error after {MAX_RETRIES} attempts: {e}"
         except requests.Timeout:
             self.errors += 1
+            self._cleanup(file_path)
             logger.error("Timeout for %s", url)
             return f'! Timeout after {MAX_RETRIES} attempts for "{url}"'
         except requests.RequestException as e:
             self.errors += 1
+            self._cleanup(file_path)
             logger.error("Request failed for %s: %s", url, e)
             return f'! Failed "{url}": {e}'
         except Exception:
             self.errors += 1
+            self._cleanup(file_path)
             logger.exception("Unexpected error downloading %s", url)
             return f'! Unexpected error for "{url}"'
+
+    def _cleanup(self, file_path: str | None) -> None:
+        """Remove a partially-written file, if any."""
+        if file_path:
+            try:
+                os.remove(file_path)
+                logger.debug("Partially-written %s successfully deleted", file_path)
+            except FileNotFoundError:
+                pass
+            except OSError as e:
+                logger.warning(
+                    "Could not remove partially-written %s: %s", file_path, e
+                )
 
     # \\ Rename / overwrite \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
