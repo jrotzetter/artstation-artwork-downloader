@@ -677,9 +677,15 @@ class TestThemeToggle:
         app._change_theme()
         app.update_idletasks()
         assert app.current_theme == "dark"
+        # Verify the theme entry and not a different label was updated
+        label = app.menubar.entrycget(app._theme_menu_index, "label")
+        assert label == "Switch to Light Mode"
+
         app._change_theme()
         app.update_idletasks()
         assert app.current_theme == "light"
+        label = app.menubar.entrycget(app._theme_menu_index, "label")
+        assert label == "Switch to Dark Mode "
 
 
 # \\\ open_download_dir \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\

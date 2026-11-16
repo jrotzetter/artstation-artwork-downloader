@@ -99,6 +99,7 @@ class ArtStationArtworkDownloader(tk.Tk):
         self.menubar.add_command(
             label="Switch to Dark Mode ", command=self._change_theme
         )
+        self._theme_menu_index = self.menubar.index("Switch to Dark Mode ")
         self.menubar.add_command(label="Exit", command=self._on_close)
 
         ###/// IMAGES FRAME CONTEXT MENU \\\###
@@ -510,7 +511,7 @@ class ArtStationArtworkDownloader(tk.Tk):
 
             new_label = "Switch to Dark Mode "
 
-        self.menubar.entryconfigure(3, label=new_label)
+        self.menubar.entryconfigure(self._theme_menu_index, label=new_label)
 
     def select_path(self):
         """
