@@ -650,7 +650,13 @@ class ArtStationArtworkDownloader(tk.Tk):
             return
 
         self.LOADED_JSON.set(id)
-        assets = json_content["assets"]
+
+        try:
+            assets = json_content["assets"]
+        except KeyError:
+            messagebox.showwarning("Warning", "'assets' key not found in JSON")
+            return
+
         # covers and videos will lead to a 403 when trying to download, best to filter them out
         urls = [
             asset["image_url"] for asset in assets if asset["asset_type"] == "image"

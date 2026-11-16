@@ -247,6 +247,13 @@ class TestPopulateImageList:
             mb.showwarning.assert_called_once()
         assert app.image_list.size() == 0
 
+    def test_missing_assets_warns(self, app):
+        with patch("artstation_artwork_downloader.main.messagebox") as mb:
+            app._populate_image_list({"hash_id": "abc123"})
+            mb.showwarning.assert_called_once()
+        assert app.image_list.size() == 0
+        assert app.LOADED_JSON.get() == "abc123"
+
 
 # \\\ _add_url \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
