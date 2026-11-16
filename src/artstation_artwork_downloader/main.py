@@ -428,6 +428,17 @@ class ArtStationArtworkDownloader(tk.Tk):
     def _on_close(self):
         logger.debug("App closed")
         self._cancel_event.set()  # Signal worker to stop
+        if hasattr(self, "_download_thread") and self._download_thread.is_alive():
+            self._log_append("\u25a0 Closing - finishing current file...")
+            self.update()  # Flush display so the user actually sees it
+            self._download_thread.join(timeout=30)
+            if self._download_thread.is_alive():
+                logger.warning(
+                    "Download thread still alive after 30s timeout; "
+                    "current file may be incomplete"
+                )
+            else:
+                logger.debug("Download thread finished cleanly")
         self._session.close()
         self.destroy()
 

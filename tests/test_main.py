@@ -85,6 +85,21 @@ class TestOnClose:
         assert app._cancel_event.is_set()
         app._session.close.assert_called_once()
 
+    def test_close_joins_active_thread(self, app):
+        mock_thread = MagicMock()
+        mock_thread.is_alive.return_value = True
+        app._download_thread = mock_thread
+
+        with patch.object(app, "destroy"), patch.object(app, "update"):
+            app._on_close()
+
+        assert app._cancel_event.is_set()
+        mock_thread.join.assert_called_once_with(timeout=30)
+        app._session.close.assert_called_once()
+        # Verify the log message was appended
+        items = app.log_lb.get(0, tk.END)
+        assert any("finishing current file" in item for item in items)
+
 
 # \\\ extract_hashid \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
