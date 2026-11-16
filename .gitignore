@@ -1,2 +1,3 @@
 src/artstation_artwork_downloader/__pycache__
 src/artstation_artwork_downloader/artstation_artwork_downloader.log
+tests/__pycache__

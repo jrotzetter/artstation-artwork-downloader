@@ -1,7 +1,5 @@
 # Copyright (c) 2025-2026 Jérémy Rotzetter
 
-__version__ = "2.5.0"
-
 import json
 import logging
 import os
@@ -15,9 +13,11 @@ from tkinter import filedialog, messagebox, ttk
 
 from curl_cffi import requests as cffi_requests
 from curl_cffi.requests.exceptions import HTTPError
-from custom_themes import dark_theme, light_theme
-from downloader import DownloadWorker
 from showinfm import show_in_file_manager
+
+from . import __version__
+from .custom_themes import dark_theme, light_theme
+from .downloader import DownloadWorker
 
 RETRYABLE = {403, 500, 502, 503, 504}
 
@@ -937,7 +937,7 @@ class ArtStationArtworkDownloader(tk.Tk):
         return self._resp_queue.get()  # Grab the user's answer
 
 
-if __name__ == "__main__":
+def main() -> None:
     # Configure logging
     frozen = getattr(sys, "frozen", False)
 
@@ -963,3 +963,7 @@ if __name__ == "__main__":
 
     app = ArtStationArtworkDownloader()
     app.mainloop()
+
+
+if __name__ == "__main__":
+    main()

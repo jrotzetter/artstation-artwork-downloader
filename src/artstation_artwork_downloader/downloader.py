@@ -15,9 +15,10 @@ from tkinter import messagebox
 from typing import Any
 
 import pymage_size
-import renamedialog
 import requests
 from humanize import naturalsize
+
+from .renamedialog import ask_rename
 
 logger = logging.getLogger(__name__)
 
@@ -604,7 +605,7 @@ class DownloadWorker:
         Returns (new_filename | None, overwrite: bool).
         """
         self._overwritevar.set(False)
-        new_filename = renamedialog.ask_rename(
+        new_filename = ask_rename(
             checkvar=self._skipvar,
             overwritevar=self._overwritevar,
             file_path=file_path,

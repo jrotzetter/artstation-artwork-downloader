@@ -1,2 +1,1 @@
-def main() -> None:
-    print("Hello from artstation-artwork-downloader!")
+__version__ = "2.5.0"
