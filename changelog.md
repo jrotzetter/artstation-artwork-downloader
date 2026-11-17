@@ -5,13 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+### Added
+- Stop button (disabled until a download is active) to cancel an in-progress download batch.
+- Automatic retry with exponential backoff for transient network errors (timeouts, connection errors, 5xx responses).
+- "Invert selection" option in the image list context menu.
+- Partially downloaded files are now removed if the transfer fails, preventing corrupted files from remaining on disk.
+
+### Fixed
+- Closing the window mid-download could leave a truncated file on disk. The worker thread is now joined (with a timeout) before the window is destroyed.
+- Loading project data to populate the image list crashed with an unhandled error when the JSON payload lacked an `"assets"` key. Now shows a warning dialog instead.
+
+### Changed
+- JSON fetching now uses a persistent session and retries on intermittent 403 and 5xx errors, improving reliability against Cloudflare/ArtStation bot-detection 403s.
+
 ## [2.4.4] - 2026-11-07
 ### Fixed
 - Prevent concurrent download batches. Disable Download, Load, Clear, Add, and Remove buttons while a batch is in progress. Fixes the edge case where a double-click spawns two worker threads and two after-loops draining the same GUI queue.
 
 ### Changed
-- Migrated from `pip` to [uv](https://github.com/astral-sh/uv) for dependency management
-  (`requirements.txt` removed, replaced by `pyproject.toml` + `uv.lock`).
+- Migrated from `pip` to [uv](https://github.com/astral-sh/uv) for dependency management (`requirements.txt` removed, replaced by `pyproject.toml` + `uv.lock`).
 
 ## [2.4.3] - 2026-11-07
 ### Fixed

@@ -42,7 +42,7 @@ EXTN_FROM_CONTENT_TYPE = {
 MAX_RETRIES = 3
 RETRYABLE_STATUS = {403, 500, 502, 503, 504}
 
-# \\\ Pure utilities \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+# === PURE UTILITIES ==========================================================
 
 
 def no_cache(url: str) -> str:
@@ -137,7 +137,7 @@ def determine_img_dimension(
         return f"{parts[0]}/{img_dim}/{parts[2]}"
 
 
-# \\\ Worker \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+# === WORKER ==================================================================
 
 
 class DownloadWorker:
@@ -199,7 +199,7 @@ class DownloadWorker:
         self.warnings = 0
         self._last_overwrite = False
 
-    # \\ Public entry point \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+    # === PUBLIC ENTRY POINT ==================================================
 
     def run(
         self,
@@ -249,7 +249,7 @@ class DownloadWorker:
             self._log("")
             self._on_done()
 
-    # \\ Loops \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+    # === LOOPS ===============================================================
 
     def _run_default(self, images, save_path, img_option, total):
         """
@@ -340,7 +340,7 @@ class DownloadWorker:
                 self._progress(index, total)
                 counter += increment
 
-    # \\ Single-image download \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+    # --- Single-image download -----------------------------------------------
 
     def _download_file(self, url, filename, save_path, sess) -> str:
         """
@@ -527,7 +527,7 @@ class DownloadWorker:
                     "Could not remove partially-written %s: %s", file_path, e
                 )
 
-    # \\ Rename / overwrite \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+    # === RENAME / OVERWRITE ==================================================
 
     def _get_new_name(
         self, filename: str, ext: str, save_path: str, download_size: int | None = None
@@ -619,7 +619,7 @@ class DownloadWorker:
         self._skip_existing = self._skipvar.get()
         return (new_filename, overwrite)
 
-    # \\ Original-dimension prompt \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+    # === ORIGINAL-DIMENSION PROMPT ===========================================
 
     def _ask_original(self, filename: str) -> bool:
         """
@@ -639,7 +639,7 @@ class DownloadWorker:
             parent=self._parent,
         )
 
-    # \\ Rate limit \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+    # === RATE LIMIT ==========================================================
 
     def _handle_rate_limit(self, total):
         """

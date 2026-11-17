@@ -6,9 +6,14 @@ from unittest.mock import MagicMock, patch
 import pytest
 from curl_cffi.requests.exceptions import HTTPError
 
-from artstation_artwork_downloader.main import _fetch_with_retry
+from artstation_artwork_downloader import ui
+from artstation_artwork_downloader.artstation_api import (
+    extract_hashid,
+    fetch_with_retry,
+    load_json,
+)
 
-# \\\ _fetch_with_retry \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+# === _fetch_with_retry =======================================================
 
 
 class TestFetchWithRetry:
@@ -18,7 +23,7 @@ class TestFetchWithRetry:
         resp.raise_for_status.return_value = None
         session.get.return_value = resp
 
-        result = _fetch_with_retry(session, "http://x", max_retries=3, delay=0)
+        result = fetch_with_retry(session, "http://x", max_retries=3, delay=0)
         assert result is resp
         assert session.get.call_count == 1
 
@@ -29,7 +34,7 @@ class TestFetchWithRetry:
         good.raise_for_status.return_value = None
         session.get.side_effect = [bad, good]
 
-        result = _fetch_with_retry(session, "http://x", max_retries=3, delay=0)
+        result = fetch_with_retry(session, "http://x", max_retries=3, delay=0)
         assert result is good
         assert session.get.call_count == 2
 
@@ -41,7 +46,7 @@ class TestFetchWithRetry:
             good.raise_for_status.return_value = None
             session.get.side_effect = [bad, good]
 
-            result = _fetch_with_retry(session, "http://x", max_retries=3, delay=0)
+            result = fetch_with_retry(session, "http://x", max_retries=3, delay=0)
             assert result is good
 
     def test_exhausts_retries_raises(self):
@@ -51,7 +56,7 @@ class TestFetchWithRetry:
         session.get.return_value = bad
 
         with pytest.raises(HTTPError):
-            _fetch_with_retry(session, "http://x", max_retries=3, delay=0)
+            fetch_with_retry(session, "http://x", max_retries=3, delay=0)
         assert session.get.call_count == 3
 
     def test_non_retryable_404_raises_immediately(self):
@@ -61,7 +66,7 @@ class TestFetchWithRetry:
         session.get.return_value = resp
 
         with pytest.raises(HTTPError):
-            _fetch_with_retry(session, "http://x", max_retries=3, delay=0)
+            fetch_with_retry(session, "http://x", max_retries=3, delay=0)
         assert session.get.call_count == 1
 
     def test_429_not_retried(self):
@@ -71,11 +76,11 @@ class TestFetchWithRetry:
         session.get.return_value = resp
 
         with pytest.raises(HTTPError):
-            _fetch_with_retry(session, "http://x", max_retries=3, delay=0)
+            fetch_with_retry(session, "http://x", max_retries=3, delay=0)
         assert session.get.call_count == 1
 
 
-# \\\ _on_close \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+# === _on_close ===============================================================
 
 
 class TestOnClose:
@@ -101,24 +106,24 @@ class TestOnClose:
         assert any("finishing current file" in item for item in items)
 
 
-# \\\ extract_hashid \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+# === extract_hashid ==========================================================
 
 
 class TestExtractHashid:
-    def test_full_url(self, app):
-        assert app.extract_hashid("https://artstation.com/artwork/abc123") == "abc123"
+    def test_full_url(self):
+        assert extract_hashid("https://artstation.com/artwork/abc123") == "abc123"
 
-    def test_bare_id(self, app):
-        assert app.extract_hashid("abc123") == "abc123"
+    def test_bare_id(self):
+        assert extract_hashid("abc123") == "abc123"
 
-    def test_invalid_chars(self, app):
-        assert app.extract_hashid("abc-123!") is None
+    def test_invalid_chars(self):
+        assert extract_hashid("abc-123!") is None
 
-    def test_empty(self, app):
-        assert app.extract_hashid("") is None
+    def test_empty(self):
+        assert extract_hashid("") is None
 
 
-# \\\ get_json_url \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+# === get_json_url ============================================================
 
 
 class TestGetJsonUrl:
@@ -136,22 +141,18 @@ class TestGetJsonUrl:
             mb.showerror.assert_called_once()
 
 
-# \\\ load_json (static method) \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+# === load_json ===============================================================
 
 
 class TestLoadJson:
-    def test_valid_json(self, app):
-        result = app.load_json('{"a": 1}')
-        assert result == {"a": 1}
+    def test_valid_json(self):
+        assert load_json('{"a": 1}') == {"a": 1}
 
-    def test_invalid_json_returns_none(self, app):
-        with patch("artstation_artwork_downloader.main.messagebox") as mb:
-            result = app.load_json("not json{{{")
-            assert result is None
-            mb.showerror.assert_called_once()
+    def test_invalid_json_returns_none(self):
+        assert load_json("not json{{{") is None
 
 
-# \\\ load_json_clp \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+# === load_json_clp ===========================================================
 
 
 class TestLoadJsonClp:
@@ -165,7 +166,7 @@ class TestLoadJsonClp:
         with patch.object(app, "clipboard_get", return_value=json.dumps(project_data)):
             app.load_json_clp()
         assert app.image_list.size() == 1
-        assert app.LOADED_JSON.get() == "xyz789"
+        assert app.PROJECT_ID.get() == "xyz789"
 
     def test_invalid_json_shows_error(self, app):
         with (
@@ -173,7 +174,7 @@ class TestLoadJsonClp:
             patch("artstation_artwork_downloader.main.messagebox") as mb,
         ):
             app.load_json_clp()
-            mb.showerror.assert_called_once()
+            mb.showerror.assert_called_once_with("Error", "Invalid JSON in clipboard")
         assert app.image_list.size() == 0
 
     def test_empty_clipboard_shows_error(self, app):
@@ -185,32 +186,30 @@ class TestLoadJsonClp:
             mb.showerror.assert_called_once()
 
 
-# \\\ load_json_url \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+# === load_json_url ===========================================================
 
 
 class TestLoadJsonUrl:
     def test_valid_hash_populates(self, app):
         app.project_ent.delete(0, tk.END)
         app.project_ent.insert(0, "abc123")
-        fake_resp = MagicMock()
-        fake_resp.json.return_value = {
-            "hash_id": "abc123",
-            "assets": [{"asset_type": "image", "image_url": "https://x/a.jpg"}],
-        }
         with patch(
-            "artstation_artwork_downloader.main._fetch_with_retry",
-            return_value=fake_resp,
+            "artstation_artwork_downloader.main.fetch_project",
+            return_value={
+                "hash_id": "abc123",
+                "assets": [{"asset_type": "image", "image_url": "https://x/a.jpg"}],
+            },
         ):
             app.load_json_url()
         assert app.image_list.size() == 1
-        assert app.LOADED_JSON.get() == "abc123"
+        assert app.PROJECT_ID.get() == "abc123"
 
     def test_http_error_shows_dialog(self, app):
         app.project_ent.delete(0, tk.END)
         app.project_ent.insert(0, "abc123")
         with (
             patch(
-                "artstation_artwork_downloader.main._fetch_with_retry",
+                "artstation_artwork_downloader.main.fetch_project",
                 side_effect=HTTPError("500"),
             ),
             patch("artstation_artwork_downloader.main.messagebox") as mb,
@@ -222,9 +221,7 @@ class TestLoadJsonUrl:
         app.project_ent.delete(0, tk.END)
         app.project_ent.insert(0, "!!!")
         with (
-            patch(
-                "artstation_artwork_downloader.main._fetch_with_retry",
-            ) as mock_fetch,
+            patch("artstation_artwork_downloader.main.fetch_project") as mock_fetch,
             patch("artstation_artwork_downloader.main.messagebox") as mb,
         ):
             app.load_json_url()
@@ -232,7 +229,7 @@ class TestLoadJsonUrl:
         mock_fetch.assert_not_called()
 
 
-# \\\ _populate_image_list \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+# === _populate_image_list ====================================================
 
 
 class TestPopulateImageList:
@@ -249,7 +246,7 @@ class TestPopulateImageList:
         app.update_idletasks()
 
         assert app.image_list.size() == 2
-        assert app.LOADED_JSON.get() == "abc123"
+        assert app.PROJECT_ID.get() == "abc123"
 
     def test_no_images(self, app):
         with patch("artstation_artwork_downloader.main.messagebox") as mb:
@@ -267,10 +264,10 @@ class TestPopulateImageList:
             app._populate_image_list({"hash_id": "abc123"})
             mb.showwarning.assert_called_once()
         assert app.image_list.size() == 0
-        assert app.LOADED_JSON.get() == "abc123"
+        assert app.PROJECT_ID.get() == "abc123"
 
 
-# \\\ _add_url \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+# === _add_url ================================================================
 
 
 class TestAddUrl:
@@ -310,7 +307,7 @@ class TestAddUrl:
             mb.showerror.assert_called_once()
 
 
-# \\\ _remove_url \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+# === _remove_url =============================================================
 
 
 class TestRemoveUrl:
@@ -323,21 +320,21 @@ class TestRemoveUrl:
         assert app.image_list.get(0) == "url2"
 
 
-# \\\ _clear_json \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+# === _clear_list =============================================================
 
 
 class TestClearJson:
     def test_clears_list_and_var(self, app):
-        app.LOADED_JSON.set("abc")
+        app.PROJECT_ID.set("abc")
         app.image_list.insert(tk.END, "url1")
         app.image_list.insert(tk.END, "url2")
-        app._clear_json()
+        app._clear_list()
         app.update_idletasks()
         assert app.image_list.size() == 0
-        assert app.LOADED_JSON.get() == ""
+        assert app.PROJECT_ID.get() == ""
 
 
-# \\\ show_entry \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+# === show_entry ==============================================================
 
 
 class TestShowEntry:
@@ -355,7 +352,7 @@ class TestShowEntry:
         assert str(ent.cget("state")) == "disabled"
 
 
-# \\\ _set_downloading \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+# === _set_downloading ========================================================
 
 
 class TestSetDownloading:
@@ -363,7 +360,7 @@ class TestSetDownloading:
         app._set_downloading(True)
         assert str(app.run_btn.cget("state")) == "disabled"
         assert str(app.stop_btn.cget("state")) == "normal"
-        assert str(app.load_json_url_btn.cget("state")) == "disabled"
+        assert str(app.load_project_btn.cget("state")) == "disabled"
 
     def test_inactive_enables_run(self, app):
         app._set_downloading(True)
@@ -372,7 +369,7 @@ class TestSetDownloading:
         assert str(app.stop_btn.cget("state")) == "disabled"
 
 
-# \\\ _stop_download \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+# === _stop_download ==========================================================
 
 
 class TestStopDownload:
@@ -390,7 +387,7 @@ class TestStopDownload:
         assert app.log_lb.size() == 1
 
 
-# \\\ update_progress \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+# === update_progress =========================================================
 
 
 class TestUpdateProgress:
@@ -401,7 +398,7 @@ class TestUpdateProgress:
         assert app.PROGRESS.get() == "5/10"
 
 
-# \\\ _download_images (full path with mocked worker) \\\\\\\\\\\\\\\\\\\\\\\\\
+# === _download_images (full path with mocked worker) =========================
 
 
 class TestDownloadImages:
@@ -453,7 +450,7 @@ class TestDownloadImages:
         MockWorker.assert_not_called()
 
 
-# \\\ show_context_menu \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+# === show_context_menu =======================================================
 
 
 class TestShowContextMenu:
@@ -467,10 +464,10 @@ class TestShowContextMenu:
             patch.object(app.image_list_menu, "tk_popup") as mock_popup,
             patch.object(app.image_list_menu, "grab_release"),
         ):
-            app.show_context_menu(mock_event)
+            ui.show_context_menu(mock_event)
             mock_popup.assert_called_once_with(100, 200)
 
-    def test_no_menu_assigned(self, app):
+    def test_no_menu_assigned(self):
         bare_widget = MagicMock()
         bare_widget.context_menu = None
 
@@ -478,10 +475,10 @@ class TestShowContextMenu:
         mock_event.widget = bare_widget
 
         # Should not raise
-        app.show_context_menu(mock_event)
+        ui.show_context_menu(mock_event)
 
 
-# \\\ _poll_queue (message dispatch from worker thread) \\\\\\\\\\\\\\\\\\\\\\\
+# === _poll_queue (message dispatch from worker thread) =======================
 
 
 class TestPollQueue:
@@ -534,7 +531,7 @@ class TestPollQueue:
         assert isinstance(result, RuntimeError)
 
 
-# \\\ _ask_on_main \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+# === _ask_on_main ============================================================
 
 
 class TestAskOnMain:
@@ -582,20 +579,20 @@ class TestAskOnMain:
         assert isinstance(result_holder[0], ZeroDivisionError)
 
 
-# \\\ show_on_disk \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+# === show_on_disk ============================================================
 
 
 class TestShowOnDisk:
     def test_no_selection_warns(self, app):
-        with patch("artstation_artwork_downloader.main.messagebox") as mb:
-            app.show_on_disk(app.log_lb)
+        with patch("artstation_artwork_downloader.ui.messagebox") as mb:
+            ui.show_on_disk(app, app.log_lb)
             mb.showwarning.assert_called_once()
 
     def test_invalid_prefix_warns(self, app):
         app.log_lb.insert(tk.END, "some plain text")
         app.log_lb.selection_set(0)
-        with patch("artstation_artwork_downloader.main.messagebox") as mb:
-            app.show_on_disk(app.log_lb)
+        with patch("artstation_artwork_downloader.ui.messagebox") as mb:
+            ui.show_on_disk(app, app.log_lb)
             mb.showwarning.assert_called_once()
 
     def test_valid_entry_opens_file(self, app, tmp_path):
@@ -605,22 +602,20 @@ class TestShowOnDisk:
         app.SAVE_PATH.set(str(tmp_path))
         app.log_lb.insert(tk.END, '+ Saved "result.jpg"')
         app.log_lb.selection_set(0)
-        with patch(
-            "artstation_artwork_downloader.main.show_in_file_manager"
-        ) as mock_fm:
-            app.show_on_disk(app.log_lb)
+        with patch("artstation_artwork_downloader.ui.show_in_file_manager") as mock_fm:
+            ui.show_on_disk(app, app.log_lb)
             mock_fm.assert_called_once_with(str(target))
 
     def test_missing_file_warns(self, app, tmp_path):
         app.SAVE_PATH.set(str(tmp_path))
         app.log_lb.insert(tk.END, '+ Saved "missing.jpg"')
         app.log_lb.selection_set(0)
-        with patch("artstation_artwork_downloader.main.messagebox") as mb:
-            app.show_on_disk(app.log_lb)
+        with patch("artstation_artwork_downloader.ui.messagebox") as mb:
+            ui.show_on_disk(app, app.log_lb)
             mb.showwarning.assert_called_once()
 
 
-# \\\ copy_filename \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+# === copy_filename ===========================================================
 
 
 class TestCopyFilename:
@@ -630,24 +625,24 @@ class TestCopyFilename:
             "https://cdn.example.com/images/images/artist-name-img.jpg?123456789",
         )
         app.image_list.selection_set(0)
-        app.copy_filename(app.image_list)
+        ui.copy_filename(app, app.image_list)
         assert app.clipboard_get() == "artist-name-img"
 
     def test_no_selection_warns(self, app):
-        with patch("artstation_artwork_downloader.main.messagebox") as mb:
-            app.copy_filename(app.image_list)
+        with patch("artstation_artwork_downloader.ui.messagebox") as mb:
+            ui.copy_filename(app, app.image_list)
             mb.showwarning.assert_called_once()
 
     def test_multi_selection_warns(self, app):
         app.image_list.insert(tk.END, "a.jpg")
         app.image_list.insert(tk.END, "b.jpg")
         app.image_list.selection_set(0, tk.END)
-        with patch("artstation_artwork_downloader.main.messagebox") as mb:
-            app.copy_filename(app.image_list)
+        with patch("artstation_artwork_downloader.ui.messagebox") as mb:
+            ui.copy_filename(app, app.image_list)
             mb.showwarning.assert_called_once()
 
 
-# \\\ invert_selection \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+# === invert_selection ========================================================
 
 
 class TestInvertSelection:
@@ -656,19 +651,19 @@ class TestInvertSelection:
             app.image_list.insert(tk.END, f"url{i}")
         app.image_list.selection_set(0)
         app.image_list.selection_set(2)
-        app.invert_selection(app.image_list)
+        ui.invert_selection(app.image_list)
         app.update_idletasks()
         assert set(app.image_list.curselection()) == {1, 3, 4}
 
     def test_invert_none_selected(self, app):
         app.image_list.insert(tk.END, "a")
         app.image_list.insert(tk.END, "b")
-        app.invert_selection(app.image_list)
+        ui.invert_selection(app.image_list)
         app.update_idletasks()
         assert set(app.image_list.curselection()) == {0, 1}
 
 
-# \\\ _change_theme \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+# === _change_theme ===========================================================
 
 
 class TestThemeToggle:
@@ -688,7 +683,7 @@ class TestThemeToggle:
         assert label == "Switch to Dark Mode "
 
 
-# \\\ open_download_dir \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+# === open_download_dir =======================================================
 
 
 class TestOpenDownloadDir:
