@@ -9,7 +9,7 @@
 
 import os
 import tkinter as tk
-from tkinter import simpledialog
+from tkinter import messagebox, simpledialog
 
 from showinfm import show_in_file_manager
 
@@ -109,7 +109,12 @@ class AskRenameDialog(simpledialog.Dialog):
     def show_on_disk(self):
         # Use 'show-in-file-manager' library as it should work for
         # many different OSes
-        show_in_file_manager(self.file_path)
+        if os.path.exists(self.file_path):
+            show_in_file_manager(self.file_path)
+        else:
+            messagebox.showwarning(
+                "File not found", f"File no longer exists:\n{self.file_path}"
+            )
 
     def overwrite(self):
         self.overwritevar.set(True)
