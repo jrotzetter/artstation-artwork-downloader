@@ -1,5 +1,5 @@
-# Copyright (C) 2025 Jérémy Rotzetter. Portions Copyright (C) 1997 by Fredrik Lundh.
-#
+# Copyright (C) 2025–2026 Jérémy Rotzetter. Portions Copyright (C) 1997 by Fredrik Lundh.
+
 # This code is partially derived from Python standard library's simpledialog module,
 # with modifications made to support additional buttons on the widget which are used to
 # modify boolean variables or open the os-specific standard file explorer in the directory
@@ -117,8 +117,8 @@ class AskRenameDialog(simpledialog.Dialog):
 
 
 def ask_rename(
-    checkvar: bool,
-    overwritevar: bool,
+    checkvar: tk.BooleanVar,
+    overwritevar: tk.BooleanVar,
     file_path: str,
     title: str = "File Exists",
     prompt: str = "Please enter a new filename (without extension):",
@@ -132,10 +132,10 @@ def ask_rename(
 
     :param checkvar: The boolean variable that will be set to True when
       'Skip all' button is pressed
-    :type checkvar: bool
+    :type checkvar: tk.BooleanVar
     :param overwritevar: The boolean variable that will be set to True when
       'Overwrite' button is pressed
-    :type overwritevar: bool
+    :type overwritevar: tk.BooleanVar
     :param file_path: The path to the already existing file on disk
     :type file_path: str
     :param title: The title of the window
@@ -158,14 +158,14 @@ def ask_rename(
     :rtype: str
     """
     d = AskRenameDialog(
-        checkvar,
-        overwritevar,
-        file_path,
-        title,
-        prompt,
-        initialvalue,
-        size_diff,
-        download_is_bigger,
+        checkvar=checkvar,
+        overwritevar=overwritevar,
+        file_path=file_path,
+        title=title,
+        prompt=prompt,
+        initialvalue=initialvalue,
+        size_diff=size_diff,
+        download_is_bigger=download_is_bigger,
         **kw,
     )
     return d.result
