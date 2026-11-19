@@ -103,6 +103,9 @@ class AskRenameDialog(simpledialog.Dialog):
 
     def validate(self):
         result = self.entry.get()
+        if not result.strip():
+            messagebox.showerror("Invalid name", "Filename cannot be empty")
+            return 0
         self.result = result
         return 1
 
