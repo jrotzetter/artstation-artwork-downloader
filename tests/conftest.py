@@ -13,6 +13,7 @@ def app():
     with patch.object(app_module.cffi_requests, "Session") as mock_sess:
         mock_sess.return_value = MagicMock()
         a = ArtStationArtworkDownloader()
+        a.withdraw()  # withdraw() prevents the window from flashing on screen during tests
         a.update_idletasks()
         yield a
         try:
