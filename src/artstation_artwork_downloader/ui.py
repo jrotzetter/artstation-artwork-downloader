@@ -214,7 +214,9 @@ def build_selection_frame(parent, image_list_menu: tk.Menu) -> dict:
     y_scroll.config(command=image_list.yview)
     x_scroll.config(command=image_list.xview)
     image_list.context_menu = image_list_menu  # Attach menu to widget
-    image_list.bind("<Button-3>", show_context_menu)
+    image_list.bind(
+        "<<ContextMenu>>", show_context_menu
+    )  # Bind the virtual event instead of a raw button
 
     frm.pack(fill=tk.BOTH, expand=True, padx=10, pady=(5, 10))
     frm.grid_rowconfigure(0, weight=1)
@@ -312,7 +314,7 @@ def build_log_frame(parent, log_menu: tk.Menu) -> dict:
     y_scroll.config(command=log_lb.yview)
     x_scroll.config(command=log_lb.xview)
     log_lb.context_menu = log_menu  # Attach menu to widget
-    log_lb.bind("<Button-3>", show_context_menu)
+    log_lb.bind("<<ContextMenu>>", show_context_menu)
 
     frm.pack(fill=tk.BOTH, expand=True, padx=10, pady=(0, 5))
     frm.grid_rowconfigure(0, weight=1)
@@ -335,10 +337,7 @@ def show_context_menu(event):
     menu = getattr(widget, "context_menu", None)
     if menu is None:
         return
-    try:
-        menu.tk_popup(event.x_root, event.y_root)
-    finally:
-        menu.grab_release()
+    menu.tk_popup(event.x_root, event.y_root)
 
 
 def copy_filename(app: tk.Tk, listbox: tk.Listbox):

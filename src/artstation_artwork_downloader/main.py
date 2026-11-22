@@ -1,4 +1,4 @@
-# Copyright (c) 2025-2026 Jérémy Rotzetter
+# Copyright (c) 2025–2026 Jérémy Rotzetter
 
 import logging
 import os
@@ -62,6 +62,11 @@ class ArtStationArtworkDownloader(tk.Tk):
         )
 
         # --- Context menus ---
+        # On macOS, single-button trackpads have no physical right-click;
+        # Control-click is the standard context-menu gesture.
+        if self.tk.call("tk", "windowingsystem") == "aqua":
+            self.event_add("<<ContextMenu>>", "<Control-Button-1>")
+
         self.image_list_menu = ui.build_image_list_menu(
             self,
             on_copy=lambda: ui.copy_filename(self, self.image_list),
