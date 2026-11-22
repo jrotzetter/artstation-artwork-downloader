@@ -63,10 +63,14 @@ def no_cache(url: str) -> str:
 
     :param url: URL to an artwork image on ArtStation
     :type url: str
+    :return: The URL with a random dummy query parameter appended
+             (using "?" or "&" as appropriate).
+    :rtype: str
     """
     dummy_param = secrets.token_hex(16)
     # dummy_param = secrets.token_urlsafe(16)
-    return f"{url}&{dummy_param}"
+    separator = "&" if "?" in url else "?"
+    return f"{url}{separator}{dummy_param}"
 
 
 def get_filename(url: str) -> str:
