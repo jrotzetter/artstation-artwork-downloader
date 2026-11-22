@@ -294,6 +294,9 @@ class DownloadWorker:
         Supports `$N` (original filename) and `$#` / `$#{N}` (counter) placeholders.
         Counters are zero-padded to the width of the final value in the sequence.
 
+        If the pattern becomes empty after stripping illegal characters,
+        falls back to default URL-derived naming.
+
         :param custom_name: Custom filename pattern with optional placeholders
         :type custom_name: str
         :param images: List of image URLs to download
@@ -307,6 +310,13 @@ class DownloadWorker:
         """
         # Strip characters illegal in Windows filenames (slashes, colons, wildcards, ASCII control chars)
         custom_name = re.sub(r'[\\/:*?"<>|\x00-\x1f]', "", custom_name).strip()
+        if not custom_name:
+            # All characters were illegal; fall back to default naming
+            self._log(
+                "[WARN] Custom name contained only illegal characters; using default naming"
+            )
+            self._run_default(images, save_path, img_option, total)
+            return
         counter_match = re.search(r"\$\#{(\d+)}", custom_name)
         counter = int(counter_match.group(1)) if counter_match else 1
         increment = 1
