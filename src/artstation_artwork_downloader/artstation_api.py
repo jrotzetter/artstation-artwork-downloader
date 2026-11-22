@@ -18,7 +18,7 @@ def fetch_with_retry(session, url, max_retries=3, delay=1.5):
         response = session.get(url)
         if response.status_code in RETRYABLE and attempt < max_retries:
             logger.warning(
-                "HTTP %d on attempt %d/%d, retrying in %.1fs…",
+                "HTTP %d on attempt %d/%d, retrying in %.1fs",
                 response.status_code,
                 attempt,
                 max_retries,
@@ -60,10 +60,13 @@ def extract_hashid(raw_input: str) -> str | None:
 def load_json(json_string: str):
     """Parse a JSON string. Returns the parsed object or None on failure."""
     try:
-        return json.loads(json_string)
+        result = json.loads(json_string)
     except json.JSONDecodeError as e:
-        logger.debug("JSON parse failed at position %s: %s", e.pos, e.msg)
+        logger.warning("JSON parse failed at position %s: %s", e.pos, e.msg)
         return None
+    if result is None:
+        logger.debug("JSON body was null")
+    return result
 
 
 def fetch_project(session, hashid: str) -> dict:
