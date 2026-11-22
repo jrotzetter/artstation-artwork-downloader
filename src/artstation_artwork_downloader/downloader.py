@@ -291,7 +291,8 @@ class DownloadWorker:
     def _run_custom(self, custom_name, images, save_path, img_option, total):
         """
         Download each image using a user-supplied custom filename pattern.
-        Supports `$N` (original filename) and `$#` / `$#N` (counter) placeholders.
+        Supports `$N` (original filename) and `$#` / `$#{N}` (counter) placeholders.
+        Counters are zero-padded to the width of the final value in the sequence.
 
         :param custom_name: Custom filename pattern with optional placeholders
         :type custom_name: str
@@ -309,7 +310,11 @@ class DownloadWorker:
         counter_match = re.search(r"\$\#{(\d+)}", custom_name)
         counter = int(counter_match.group(1)) if counter_match else 1
         increment = 1
-        digits = 1
+        # Pad so that all numbers in the sequence have the same width
+        # If many files are skipped (e.g. already existing), the padding
+        # may be wider than necessary
+        last = counter + len(images) - 1
+        digits = max(1, len(str(last)))
 
         with requests.Session() as sess:
             for index, image in enumerate(images, start=1):
@@ -331,7 +336,7 @@ class DownloadWorker:
                     else:
                         filename = filename.replace("$#", num_formatted)
                 elif len(images) > 1:
-                    filename = f"{filename}{counter}"
+                    filename = f"{filename}{counter:0{digits}d}"
 
                 image_url = determine_img_dimension(
                     image, img_option, filename, self._ask_original
