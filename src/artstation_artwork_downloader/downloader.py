@@ -277,6 +277,8 @@ class DownloadWorker:
                         f"\u25a0 {remaining} file(s) remaining in queue - skipped"
                     )
                     return
+                if self._skipvar.get():
+                    self._skip_existing = True
                 filename = get_filename(image)
                 image_url = determine_img_dimension(
                     image, img_option, filename, self._ask_original
@@ -335,6 +337,8 @@ class DownloadWorker:
                         f"\u25a0 {remaining} file(s) remaining in queue - skipped"
                     )
                     return
+                if self._skipvar.get():
+                    self._skip_existing = True
                 filename = custom_name
                 if "$N" in filename:
                     filename = filename.replace("$N", get_filename(image))
