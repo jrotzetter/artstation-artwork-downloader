@@ -528,7 +528,7 @@ class TestPollQueue:
             app._poll_queue()
         assert result_event.is_set()
         result = app._resp_queue.get()
-        assert isinstance(result, RuntimeError)
+        assert result is None
 
 
 # === _ask_on_main ============================================================

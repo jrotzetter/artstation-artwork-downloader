@@ -353,28 +353,37 @@ class ArtStationArtworkDownloader(tk.Tk):
             while True:
                 msg = self._gui_queue.get_nowait()
                 kind = msg[0]
-                if kind == "log":
-                    self.log_lb.insert(tk.END, msg[1])
-                    self.log_lb.see(tk.END)
-                elif kind == "progress":
-                    self.update_progress(msg[1], msg[2])
-                elif kind == "dialog":
-                    _, dialog_fn, kwargs, result_event = msg
-                    try:
-                        self._resp_queue.put(
-                            dialog_fn(**kwargs)
-                        )  # Blocks until user responds
-                    except Exception as e:
-                        self._resp_queue.put(e)
-                    finally:
-                        result_event.set()
-                elif kind == "done":
-                    self._polling = False
-                    self._set_downloading(False)
-                    return  # Stop the after-loop
+                try:
+                    if kind == "log":
+                        self.log_lb.insert(tk.END, msg[1])
+                        self.log_lb.see(tk.END)
+                    elif kind == "progress":
+                        self.update_progress(msg[1], msg[2])
+                    elif kind == "dialog":
+                        _, dialog_fn, kwargs, result_event = msg
+                        try:
+                            self._resp_queue.put(
+                                dialog_fn(**kwargs)
+                            )  # Blocks until user responds
+                        except Exception:
+                            logger.exception("Dialog handler raised")
+                            self._resp_queue.put(
+                                None
+                            )  # Unblock worker if dialog itself raises
+                        finally:
+                            result_event.set()
+                    elif kind == "done":
+                        self._polling = False
+                        self._set_downloading(False)
+                        return  # Stop the after-loop
+                except Exception:
+                    logger.exception("Error handling GUI queue message")
         except queue.Empty:
             pass
-        self.after(100, self._poll_queue)
+        try:
+            self.after(100, self._poll_queue)
+        except tk.TclError:
+            pass  # Window already destroyed
 
     def _ask_on_main(self, dialog_fn, **kwargs):
         """Show a modal dialog on the main thread, return its result here."""
