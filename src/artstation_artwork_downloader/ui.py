@@ -1,6 +1,6 @@
 # Copyright (c) 2026 Jérémy Rotzetter
 
-"""UI construction, listbox helpers, and dialogs for ArtStation Artwork Project Downloader."""
+"""UI construction, listbox helpers, and dialogs for ArtStation Artwork Downloader."""
 
 import os
 import re
@@ -393,7 +393,7 @@ def show_on_disk(app: tk.Tk, listbox: tk.Listbox):
 def show_about(version: str):
     messagebox.showinfo(
         "About",
-        f"ArtStation Artwork Project Downloader\n \nAuthor: jrotzetter \nVersion: {version} \nLicense: MIT",
+        f"ArtStation Artwork Downloader\n \nAuthor: jrotzetter \nVersion: {version} \nLicense: MIT",
     )
 
 

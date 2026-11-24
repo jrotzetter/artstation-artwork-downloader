@@ -1,4 +1,4 @@
-# ArtStation Artwork Project Downloader
+# ArtStation Artwork Downloader
 
 [![GitHub Release](https://img.shields.io/github/release/jrotzetter/artstation-artwork-downloader?include_prereleases=&sort=semver&color=blue)](https://github.com/jrotzetter/artstation-artwork-downloader/releases/ "View releases")
 [![License](https://img.shields.io/badge/License-MIT-blue)](#license "View license summary")

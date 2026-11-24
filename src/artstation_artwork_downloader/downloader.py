@@ -1,7 +1,7 @@
 # Copyright (c) 2026 Jérémy Rotzetter
 
 """
-Download logic for ArtStation Artwork Project Downloader.
+Download logic for ArtStation Artwork Downloader.
 No direct widget manipulation; all user-facing interaction is
 delegated to injected callbacks.
 """

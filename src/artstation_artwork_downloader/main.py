@@ -24,7 +24,7 @@ class ArtStationArtworkDownloader(tk.Tk):
         super().__init__()
         logger.debug("App started")
         self.protocol("WM_DELETE_WINDOW", self._on_close)
-        self.title("ArtStation Artwork Project Downloader")
+        self.title("ArtStation Artwork Downloader")
         ui.center_window(self, 900, 820)
         self.minsize(width=900, height=820)
 
