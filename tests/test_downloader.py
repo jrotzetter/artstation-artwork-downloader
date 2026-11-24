@@ -571,7 +571,7 @@ class TestDownloadFile:
         worker, mocks = _make_worker()
         worker._skip_existing = False
         (tmp_path / "a.png").write_bytes(b"old")
-        mocks["on_dialog"].return_value = ("renamed", False)
+        mocks["on_dialog"].return_value = ("renamed", False, False)
         resp = _mock_response(
             content=b"new", content_type="image/png", content_length=3
         )
@@ -596,7 +596,7 @@ class TestDownloadFile:
         worker, mocks = _make_worker()
         worker._skip_existing = False
         (tmp_path / "a.png").write_bytes(b"old")
-        mocks["on_dialog"].return_value = (None, True)
+        mocks["on_dialog"].return_value = (None, True, False)
         resp = _mock_response(
             content=b"new", content_type="image/png", content_length=3
         )
@@ -621,7 +621,7 @@ class TestDownloadFile:
         worker, mocks = _make_worker()
         worker._skip_existing = False
         (tmp_path / "a.png").write_bytes(b"old")
-        mocks["on_dialog"].return_value = (None, False)
+        mocks["on_dialog"].return_value = (None, False, False)
         resp = _mock_response(
             content=b"new", content_type="image/png", content_length=3
         )
@@ -860,7 +860,7 @@ class TestGetNewName:
     def test_returns_original_on_overwrite(self, tmp_path):
         worker, mocks = _make_worker()
         (tmp_path / "a.png").write_bytes(b"old")
-        mocks["on_dialog"].return_value = (None, True)
+        mocks["on_dialog"].return_value = (None, True, False)
 
         result = worker._get_new_name("a", ".png", str(tmp_path), download_size=100)
 
@@ -870,16 +870,26 @@ class TestGetNewName:
     def test_returns_none_on_skip(self, tmp_path):
         worker, mocks = _make_worker()
         (tmp_path / "a.png").write_bytes(b"old")
-        mocks["on_dialog"].return_value = (None, False)
+        mocks["on_dialog"].return_value = (None, False, False)
 
         result = worker._get_new_name("a", ".png", str(tmp_path), download_size=100)
 
         assert result is None
 
+    def test_skip_all_propagates_to_worker(self, tmp_path):
+        worker, mocks = _make_worker()
+        worker._skip_existing = False
+        (tmp_path / "a.png").write_bytes(b"old")
+        mocks["on_dialog"].return_value = (None, False, True)  # skip_all=True
+
+        worker._get_new_name("a", ".png", str(tmp_path), download_size=100)
+
+        assert worker._skip_existing is True
+
     def test_n_placeholder_in_user_name(self, tmp_path):
         worker, mocks = _make_worker()
         (tmp_path / "a.png").write_bytes(b"old")
-        mocks["on_dialog"].return_value = ("prefix_$N", False)
+        mocks["on_dialog"].return_value = ("prefix_$N", False, False)
 
         result = worker._get_new_name("a", ".png", str(tmp_path), download_size=100)
 
@@ -888,7 +898,7 @@ class TestGetNewName:
     def test_returns_new_name(self, tmp_path):
         worker, mocks = _make_worker()
         (tmp_path / "a.png").write_bytes(b"old")
-        mocks["on_dialog"].return_value = ("b", False)
+        mocks["on_dialog"].return_value = ("b", False, False)
 
         result = worker._get_new_name("a", ".png", str(tmp_path), download_size=100)
 
@@ -898,7 +908,7 @@ class TestGetNewName:
         worker, mocks = _make_worker()
         (tmp_path / "a.png").write_bytes(b"old")
         (tmp_path / "b.png").write_bytes(b"also old")
-        mocks["on_dialog"].side_effect = [("b", False), ("c", False)]
+        mocks["on_dialog"].side_effect = [("b", False, False), ("c", False, False)]
 
         result = worker._get_new_name("a", ".png", str(tmp_path), download_size=100)
 
@@ -908,7 +918,7 @@ class TestGetNewName:
     def test_size_comparison_equal(self, tmp_path):
         worker, mocks = _make_worker()
         (tmp_path / "a.png").write_bytes(b"12345")
-        mocks["on_dialog"].return_value = ("new", False)
+        mocks["on_dialog"].return_value = ("new", False, False)
 
         worker._get_new_name("a", ".png", str(tmp_path), download_size=5)
 
@@ -918,7 +928,7 @@ class TestGetNewName:
     def test_size_comparison_download_bigger(self, tmp_path):
         worker, mocks = _make_worker()
         (tmp_path / "a.png").write_bytes(b"123")
-        mocks["on_dialog"].return_value = ("new", False)
+        mocks["on_dialog"].return_value = ("new", False, False)
 
         worker._get_new_name("a", ".png", str(tmp_path), download_size=100)
 
@@ -928,7 +938,7 @@ class TestGetNewName:
     def test_size_comparison_disk_bigger(self, tmp_path):
         worker, mocks = _make_worker()
         (tmp_path / "a.png").write_bytes(b"1234567890")
-        mocks["on_dialog"].return_value = ("new", False)
+        mocks["on_dialog"].return_value = ("new", False, False)
 
         worker._get_new_name("a", ".png", str(tmp_path), download_size=3)
 

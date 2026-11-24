@@ -587,7 +587,7 @@ class DownloadWorker:
             size_diff = None
 
         # Runs entirely on the main thread via the _dialog bridge
-        new_filename, overwrite = self._dialog(
+        new_filename, overwrite, skip_all = self._dialog(
             self._show_rename,
             file_path=file_path,
             initialvalue=filename,
@@ -596,6 +596,7 @@ class DownloadWorker:
         )
         # Store for the caller (_download_file) to read
         self._last_overwrite = overwrite
+        self._skip_existing = skip_all  # Worker writes its own state
 
         # If the user clicked on the overwrite button, use the original name
         if new_filename is None and overwrite:
@@ -634,9 +635,8 @@ class DownloadWorker:
             parent=self._parent,
         )
         overwrite = self._overwritevar.get()
-        # "Skip all" may have set self._skipvar; propagate to the worker's plain bool
-        self._skip_existing = self._skipvar.get()
-        return (new_filename, overwrite)
+        skip_all = self._skipvar.get()  # Read on main thread
+        return (new_filename, overwrite, skip_all)
 
     # === ORIGINAL-DIMENSION PROMPT ===========================================
 
