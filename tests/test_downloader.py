@@ -864,8 +864,7 @@ class TestGetNewName:
 
         result = worker._get_new_name("a", ".png", str(tmp_path), download_size=100)
 
-        assert result == "a.png"
-        assert worker._last_overwrite is True
+        assert result == ("a.png", True)
 
     def test_returns_none_on_skip(self, tmp_path):
         worker, mocks = _make_worker()
@@ -874,7 +873,7 @@ class TestGetNewName:
 
         result = worker._get_new_name("a", ".png", str(tmp_path), download_size=100)
 
-        assert result is None
+        assert result == (None, False)
 
     def test_skip_all_propagates_to_worker(self, tmp_path):
         worker, mocks = _make_worker()
@@ -893,7 +892,7 @@ class TestGetNewName:
 
         result = worker._get_new_name("a", ".png", str(tmp_path), download_size=100)
 
-        assert result == "prefix_a.png"
+        assert result == ("prefix_a.png", False)
 
     def test_returns_new_name(self, tmp_path):
         worker, mocks = _make_worker()
@@ -902,7 +901,7 @@ class TestGetNewName:
 
         result = worker._get_new_name("a", ".png", str(tmp_path), download_size=100)
 
-        assert result == "b.png"
+        assert result == ("b.png", False)
 
     def test_recurses_on_collision(self, tmp_path):
         worker, mocks = _make_worker()
@@ -912,7 +911,7 @@ class TestGetNewName:
 
         result = worker._get_new_name("a", ".png", str(tmp_path), download_size=100)
 
-        assert result == "c.png"
+        assert result == ("c.png", False)
         assert mocks["on_dialog"].call_count == 2
 
     def test_size_comparison_equal(self, tmp_path):

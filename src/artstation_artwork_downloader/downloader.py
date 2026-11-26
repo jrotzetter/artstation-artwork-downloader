@@ -201,7 +201,6 @@ class DownloadWorker:
         self.errors = 0
         self.skips = 0
         self.warnings = 0
-        self._last_overwrite = False
 
     # === PUBLIC ENTRY POINT ==================================================
 
@@ -277,6 +276,12 @@ class DownloadWorker:
                         f"\u25a0 {remaining} file(s) remaining in queue - skipped"
                     )
                     return
+                # Reading a Tkinter checkbox value from the background thread
+                # forces it back onto the main thread, which can freeze the
+                # download if the main thread is busy.
+                # Safe to read from this thread: the main event loop is free to
+                # respond here during a batch as most other buttons are locked.
+                # The round-trip is negligible compared to the network I/O.
                 if self._skipvar.get():
                     self._skip_existing = True
                 filename = get_filename(image)
@@ -454,11 +459,13 @@ class DownloadWorker:
                     # If SKIP_EXISTING is not checked, prompt user how to handle
                     if not self._skip_existing:
                         if content_length != 0:
-                            new_name = self._get_new_name(
+                            new_name, did_overwrite = self._get_new_name(
                                 filename, ext, save_path, content_length
                             )
                         else:
-                            new_name = self._get_new_name(filename, ext, save_path)
+                            new_name, did_overwrite = self._get_new_name(
+                                filename, ext, save_path
+                            )
 
                     if new_name is None:
                         self.skips += 1
@@ -505,7 +512,7 @@ class DownloadWorker:
             if new_name is not None:
                 # OVERWRITE was set by the dialog on the main thread;
                 # read it via the result returned by _show_rename_dialog
-                if self._last_overwrite:
+                if did_overwrite:
                     self.warnings += 1
                     return (
                         f'* Saved: "{new_name}" ({width}x{height}, {human_size}) '
@@ -570,9 +577,8 @@ class DownloadWorker:
          (if Content-Length is available). If provided, it can indicate whether
          a previously downloaded file is bigger or smaller than the current one
         :type download_size: int | None
-        :return: The filename to save as (may be the original name on overwrite),
-         or `None` if the file should be skipped.
-        :rtype: str | None
+        :return: (new_file, overwrite) tuple, or (None, False) if the file should be skipped
+        :rtype: (str, bool) | (None, bool)
         """
         file_path = os.path.join(save_path, f"{filename}{ext}")
 
@@ -598,17 +604,15 @@ class DownloadWorker:
             size_diff=size_diff,
             download_is_bigger=download_is_bigger,
         )
-        # Store for the caller (_download_file) to read
-        self._last_overwrite = overwrite
         self._skip_existing = skip_all  # Worker writes its own state
 
         # If the user clicked on the overwrite button, use the original name
         if new_filename is None and overwrite:
-            return f"{filename}{ext}"
+            return f"{filename}{ext}", True
         # If the user clicked on skip button or entered an empty string,
         # exit function and skip download of this file
         if new_filename is None or new_filename == "":
-            return None
+            return None, False
 
         # Check whether a file with this new name exists
         if "$N" in new_filename:
@@ -620,13 +624,13 @@ class DownloadWorker:
             if download_size is None:
                 return self._get_new_name(new_filename, ext, save_path)
             return self._get_new_name(new_filename, ext, save_path, download_size)
-        return new_file
+        return new_file, False
 
     def _show_rename(self, file_path, initialvalue, size_diff, download_is_bigger):
         """
         Runs on the main thread (dispatched by _dialog). Resets OVERWRITE,
         calls renamedialog.ask_rename, reads OVERWRITE and SKIP_EXISTING.
-        Returns (new_filename | None, overwrite: bool).
+        Returns (new_filename | None, overwrite: bool, skip_all: bool).
         """
         self._overwritevar.set(False)
         new_filename = ask_rename(
