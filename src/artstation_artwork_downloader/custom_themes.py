@@ -4,6 +4,8 @@ import tkinter as tk
 from tkinter import ttk
 
 # Define themes
+
+# --- light_theme -------------------------------------------------------------
 light_theme = {
     "TFrame": {"configure": {"background": "#f0f0f0"}},
     "TButton": {
@@ -81,6 +83,8 @@ light_theme = {
         },
     },
 }
+
+# --- dark_theme --------------------------------------------------------------
 dark_theme = {
     "TFrame": {"configure": {"background": "#171717"}},
     "TButton": {
@@ -126,13 +130,13 @@ dark_theme = {
         "map": {
             # Distinct colors for states to improve visibility in dark mode
             "fieldbackground": [
-                ("readonly", "#555555"),
-                ("disabled", "#444444"),
+                ("readonly", "#2a2d2f"),
+                ("disabled", "#1f2123"),
                 ("active", "#4c4f51"),  # Lighter background on focus
             ],
             "foreground": [
-                ("readonly", "lightgray"),  # Softer text for non-editable text
-                ("disabled", "#888888"),  # Faded for disabled
+                ("readonly", "#c0c0c0"),  # Softer text for non-editable text
+                ("disabled", "#555555"),  # Faded for disabled
             ],
         },
     },
@@ -169,8 +173,7 @@ dark_theme = {
 # For default values of clam theme see here:
 # https://github.com/coapp-packages/tk/blob/master/library/ttk/clamTheme.tcl
 
-# Test themes
-# \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+# === TEST THEMES =============================================================
 if __name__ == "__main__":
 
     class ThemeApp:
