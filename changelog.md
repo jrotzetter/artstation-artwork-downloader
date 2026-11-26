@@ -5,19 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.5.0] - 2026-11-26
 ### Added
 - Stop button (disabled until a download is active) to cancel an in-progress download batch.
 - Automatic retry with exponential backoff for transient network errors (timeouts, connection errors, 5xx responses).
 - "Invert selection" option in the image list context menu.
 - Partially downloaded files are now removed if the transfer fails, preventing corrupted files from remaining on disk.
+- Context menu support on macOS (Control-click and multi-button mice).
+- Context menu (Select All, Copy, Paste, Clear) on project URL/ID and custom name entry fields.
+- Pre-built executables available as GitHub release assets for Windows and Linux (x86_64). No Python installation required.
 
 ### Fixed
 - Closing the window mid-download could leave a truncated file on disk. The worker thread is now joined (with a timeout) before the window is destroyed.
 - Loading project data to populate the image list crashed with an unhandled error when the JSON payload lacked an `"assets"` key. Now shows a warning dialog instead.
+- Cache-busting query parameter was appended with `&` even when the URL had no existing query string, producing an invalid URL. Now uses `?` when no query parameters are present.
+- Custom filename counter was not zero-padded for sequences exceeding 9 files (e.g. `img1...img9, img10, img11`), breaking lexicographic sort order. Digit width is now computed from the final counter value.
+- A custom filename consisting entirely of characters illegal on Windows (e.g. `***`) passed the non-empty check but became an empty string after stripping, producing files with no name (only an extension, e.g. `.png`). Now falls back to default URL-derived naming.
+- Worker thread no longer hangs indefinitely if a dialog handler raises an exception during a download batch.
+- "Always skip existing files?" checkbox now takes effect immediately when checked mid-batch, instead of requiring one more rename dialog to appear first.
 
 ### Changed
 - JSON fetching now uses a persistent session and retries on intermittent 403 and 5xx errors, improving reliability against Cloudflare/ArtStation bot-detection 403s.
+- Renaming with an empty or whitespace-only filename now shows an error dialog instead of silently proceeding.
+- Dark theme disabled/readonly fields now have correct visual hierarchy (they recede rather than appear more active) and improved text legibility.
 
 ## [2.4.4] - 2026-11-07
 ### Fixed
@@ -125,6 +135,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Alternatively, skip the download of all files that already exist
   - Download results will be displayed for each file
 
+[2.5.0]: https://github.com/jrotzetter/artstation-artwork-downloader/releases/tag/v2.5.0
 [2.4.4]: https://github.com/jrotzetter/artstation-artwork-downloader/releases/tag/v2.4.4
 [2.4.3]: https://github.com/jrotzetter/artstation-artwork-downloader/releases/tag/v2.4.3
 [2.4.2]: https://github.com/jrotzetter/artstation-artwork-downloader/releases/tag/v2.4.2

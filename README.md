@@ -16,8 +16,9 @@ While there exist other more sophisticated tools with support for many more imag
 - Get a list of artworks featured on a project page
 - Add or remove individual artworks from the artworks list
 - Select which images to download by clicking on them in the list
-  - _Only Windows/Linux_: option in context menu (opened through right-click) to select or deselect all artwork URLs
-  - _Only Windows/Linux_: option in context menu to copy the file name of a single selected URL to the clipboard
+  - Option in context menu (opened through right-click, or Control-click on macOS) to select or deselect all artwork URLs
+  - Option in context menu to invert selection of artwork URLs
+  - Option in context menu to copy the file name of a single selected URL to the clipboard
 - Specify a custom file name
   - Files will be numbered sequentially except when only one file is to be downloaded
   - The original file name can be included anywhere in the custom file name by using the pattern `$N`
@@ -25,9 +26,10 @@ While there exist other more sophisticated tools with support for many more imag
   - The starting counter for the custom file name can be set by including the pattern `$#{d+}`, where `d+` represents one or more digits
 - Option to skip, rename or overwrite a file if one with the same name already exists in the specified download directory
 - Alternatively, skip the download of all files that already exist
+- Context menu (Select All, Copy, Paste, Clear) on project URL/ID and custom file name entry fields
 - Download results will be displayed for each file
-  - _Only Windows/Linux_: A downloaded file can be shown on disk in OS-specific default file explorer by selecting it in _Download Status_ and clicking the option in the context menu (opened through right-click)
-- Light mode / dark mode switch
+  - A downloaded file can be shown on disk in OS-specific default file explorer by selecting it in _Download Status_ and clicking the option in the context menu (opened through right-click)
+- Light mode/dark mode switch
 
 ## How to use:
 
@@ -48,11 +50,39 @@ While there exist other more sophisticated tools with support for many more imag
 > If `8k` is selected (the default setting), images will always be downloaded at the best possible quality and size, even if the actual image is not available at 8k.
 
 ## Installation
+
+### From a release (recommended)
+Download the latest release from the [Releases page](https://github.com/jrotzetter/artstation-artwork-downloader/releases/latest). No Python or other dependencies required.
+
+#### Windows
+Unpack the zip file and double-click `artstation-downloader.exe`.
+
+> [!NOTE]
+> - Windows **SmartScreen** may show a "Windows protected your PC" warning on first launch because the executable is not code-signed. Click **More info** &rightarrow; **Run anyway**.
+> - Some **antivirus** software may flag the executable as a false positive. ⁠ If this happens, add an exclusion for the executable in your antivirus settings.
+
+#### Linux (x86_64)
+Unpack the zip file, change permissions on the executable, and run it:
+
+```bash
+# Replace x.x.x with the downloaded version from the Releases page
+unzip artstation-downloader-x.x.x-linux-x86_64.zip
+chmod +x artstation-downloader/artstation-downloader
+./artstation-downloader/artstation-downloader
+```
+
+> [!NOTE]
+> Requires glibc &ge; 2.43 (Ubuntu 26.04+, Debian 14+, Fedora 44+).
+> If your system has an older glibc, build from source instead.   
+
+### From source
+For contributors or if you need the latest **development** version:
+
 1. Clone the repository or download the zip file
 2. Ensure that [uv](https://docs.astral.sh/uv/getting-started/installation/) is installed
 3. Navigate to the project directory in your command line interface (CLI) of choice
 4. Run `uv sync`. This command automatically creates the virtual environment (.venv) if it does not exist and installs all dependencies specified in the pyproject.toml and locked in the uv.lock file.
-5. Execute the main script: `uv run src/artstation_artwork_downloader/main.py`
+5. Execute the main script: either `uv run artstation-downloader` or `python -m artstation_artwork_downloader.main`
 
 ## Disclaimer
 This program is intended for personal, non-profit use only and is not optimized for large-scale, high-volume scraping of files. Please source your data for training AI models ethically. Publicly available datasets for experimentation with machine learning and deep learning can be found on [Kaggle](https://www.kaggle.com/datasets).
