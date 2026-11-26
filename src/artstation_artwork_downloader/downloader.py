@@ -583,7 +583,12 @@ class DownloadWorker:
         file_path = os.path.join(save_path, f"{filename}{ext}")
 
         if download_size is not None:
-            on_disk = os.path.getsize(file_path)
+            try:
+                on_disk = os.path.getsize(file_path)
+            except OSError:
+                # File may have been deleted between isfile() in _download_file
+                # check and here; no collision to resolve
+                return f"{filename}{ext}", False
             # Check whether the reported download size matches file size on disk
             if download_size == on_disk:
                 download_is_bigger = 2
