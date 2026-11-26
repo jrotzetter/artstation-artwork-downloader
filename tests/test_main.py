@@ -478,6 +478,80 @@ class TestShowContextMenu:
         ui.show_context_menu(mock_event)
 
 
+# === build_entry_menu ========================================================
+
+
+class TestBuildEntryMenu:
+    @pytest.fixture
+    def mock_entry(self):
+        return MagicMock(spec=tk.Entry)
+
+    @patch("tkinter.Menu")
+    def test_menu_structure(self, MockMenu, mock_entry):
+        ui.build_entry_menu(mock_entry)
+        m = MockMenu.return_value
+        expected = [
+            ("add_command", "Select All"),
+            ("add_separator", None),
+            ("add_command", "Copy"),
+            ("add_command", "Paste"),
+            ("add_separator", None),
+            ("add_command", "Clear"),
+        ]
+        actual = [
+            (name, kwargs.get("label"))
+            for name, args, kwargs in m.method_calls
+            if name in ("add_command", "add_separator")
+        ]
+        assert actual == expected
+
+    @patch("tkinter.Menu")
+    def test_tearoff(self, MockMenu, mock_entry):
+        ui.build_entry_menu(mock_entry)
+        MockMenu.assert_called_once_with(tearoff=0)
+
+    @patch("tkinter.Menu")
+    def test_context_menu_popup(self, MockMenu, mock_entry):
+        ui.build_entry_menu(mock_entry)
+        callback = mock_entry.bind.call_args[0][1]
+        event = MagicMock()
+        event.x_root = 100
+        event.y_root = 200
+        mock_entry.cget.return_value = "normal"
+        callback(event)
+        MockMenu.return_value.tk_popup.assert_called_once_with(100, 200)
+
+    @patch("tkinter.Menu")
+    def test_select_all(self, MockMenu, mock_entry):
+        ui.build_entry_menu(mock_entry)
+        cmd = MockMenu.return_value.add_command.call_args_list[0].kwargs["command"]
+        cmd()
+        mock_entry.focus.assert_called_once()
+        mock_entry.select_range.assert_called_once_with(0, tk.END)
+
+    @patch("tkinter.Menu")
+    def test_copy(self, MockMenu, mock_entry):
+        ui.build_entry_menu(mock_entry)
+        cmd = MockMenu.return_value.add_command.call_args_list[1].kwargs["command"]
+        cmd()
+        mock_entry.event_generate.assert_called_once_with("<<Copy>>")
+
+    @patch("tkinter.Menu")
+    def test_paste(self, MockMenu, mock_entry):
+        ui.build_entry_menu(mock_entry)
+        cmd = MockMenu.return_value.add_command.call_args_list[2].kwargs["command"]
+        cmd()
+        mock_entry.event_generate.assert_called_once_with("<<Paste>>")
+
+    @patch("tkinter.Menu")
+    def test_clear(self, MockMenu, mock_entry):
+        ui.build_entry_menu(mock_entry)
+        cmd = MockMenu.return_value.add_command.call_args_list[3].kwargs["command"]
+        cmd()
+        mock_entry.focus.assert_called_once()
+        mock_entry.delete.assert_called_once_with(0, tk.END)
+
+
 # === _poll_queue (message dispatch from worker thread) =======================
 
 

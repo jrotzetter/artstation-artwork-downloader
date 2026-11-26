@@ -60,6 +60,35 @@ def build_menubar(
 # === Context menus ============================================================
 
 
+def build_entry_menu(entry: tk.Entry) -> tk.Menu:
+    menu = tk.Menu(tearoff=0)
+    menu.add_command(
+        label="Select All",
+        command=lambda: (entry.focus(), entry.select_range(0, tk.END)),
+    )
+    menu.add_separator()
+    menu.add_command(
+        label="Copy",
+        command=lambda: entry.event_generate("<<Copy>>"),
+    )
+    menu.add_command(
+        label="Paste",
+        command=lambda: entry.event_generate("<<Paste>>"),
+    )
+    menu.add_separator()
+    menu.add_command(
+        label="Clear",
+        command=lambda: (entry.focus(), entry.delete(0, tk.END)),
+    )
+    entry.bind(
+        "<<ContextMenu>>",
+        lambda e: (
+            str(entry.cget("state")) == "normal" and menu.tk_popup(e.x_root, e.y_root)
+        ),
+    )
+    return menu
+
+
 def build_image_list_menu(
     app: tk.Tk, on_copy, on_select_all, on_invert, on_clear
 ) -> tk.Menu:
@@ -168,6 +197,8 @@ def build_source_frame(parent, loaded_json_var: tk.StringVar) -> dict:
     loaded_ent.grid(row=3, column=0, padx=10, pady=(0, 10))
     clear_btn.grid(row=3, column=1, padx=10, pady=(0, 10))
 
+    build_entry_menu(project_ent)
+
     # Right: handle individual artworks
     art_frm = ttk.Frame(master=container, relief="groove")
     add_btn = ttk.Button(
@@ -272,6 +303,8 @@ def build_download_frame(
     custom_check.grid(row=0, column=1, padx=10, pady=10)
     stop_btn.grid(row=0, column=3, padx=10, pady=10)
     run_btn.grid(row=0, column=4, padx=10, pady=10)
+
+    build_entry_menu(custom_entry)
 
     return {
         "frame": frm,
